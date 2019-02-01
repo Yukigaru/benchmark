@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <chrono>
 #include <vector>
+#include <cmath>
 #include "detail/program_arguments.h"
 
 /*
@@ -89,11 +90,12 @@ struct BenchmarkSetup {
     enum OutputStyle {
         Table,
         OneLine,
-        Lines
+        Lines,
+        Nothing
     };
 
     BenchmarkSetup():
-        style(OutputStyle::Table),
+        outputStyle(OutputStyle::Table),
         verbose(false),
         skipWarmup(false)
     {
@@ -106,11 +108,11 @@ struct BenchmarkSetup {
         
         std::string outputStyle = args.after("output");
         if (outputStyle == "lines") {
-            style = OutputStyle::Lines;
+            outputStyle = OutputStyle::Lines;
         } else if (outputStyle == "oneline") {
-            style = OutputStyle::OneLine;
+            outputStyle = OutputStyle::OneLine;
         } else if (outputStyle == "table") {
-            style = OutputStyle::Table;
+            outputStyle = OutputStyle::Table;
         } else {
             fprintf(stderr, "Unexpected value of 'output' argument: %s\n", outputStyle.c_str());
         }
@@ -119,7 +121,7 @@ struct BenchmarkSetup {
         skipWarmup = args.contains("skipWarmup");
     }
 
-    OutputStyle style;
+    OutputStyle outputStyle;
     bool verbose;
     bool skipWarmup;
 };
@@ -143,16 +145,16 @@ class Benchmark {
     std::vector<duration_t> _timeSamples;
 
 public:
-    Benchmark(const char *name_)
+    Benchmark(const char *name_ = "")
         : Benchmark(BenchmarkSetup(), name_)
     {
     }
     
-    Benchmark(const BenchmarkSetup &setup_, const char *name_)
+    Benchmark(const BenchmarkSetup &setup_, const char *name_ = "")
         : _name(name_)
         , _setup(setup_)
         , _totalIterations(0)
-        , _repeats(0)
+        , _repeats(1)
         , _totalTimeRun(0)
         , _averageTime(0)
         , _medianTime(0)
@@ -182,7 +184,6 @@ public:
     // TODO: BENCHMARK macro
     // TODO: cpu core affinity?
     // TODO: remove deviations
-    // TODO: result getters
     // TODO: unit-tests
     template <typename F>
     void run(F &&func)
@@ -192,7 +193,6 @@ public:
         static constexpr int SamplesNumber = 1000;
         _timeSamples.reserve(256);
 
-        _repeats = 1;
         bool firstRun = true;
         
         if (!_setup.skipWarmup) {
@@ -240,11 +240,11 @@ public:
         printResults();
     }
 
-#ifdef _DEBUG
     void debugAddSample(std::chrono::steady_clock::duration sample) {
         _timeSamples.push_back(sample);
+        _totalTimeRun += sample;
+        _totalIterations++;
     }
-#endif
 
     void printTime(std::chrono::steady_clock::duration duration)
     {
@@ -278,14 +278,11 @@ public:
         if (_timeSamples.empty())
             return false;
 
-        _averageTime = std::chrono::steady_clock::duration(0);
-        _minimalTime = _timeSamples[0];
-        _maximalTime = _timeSamples[0];
+        _averageTime = duration_t(0);
+        _minimalTime = _maximalTime = _timeSamples[0];
 
-        // minimum and average
-        for (size_t i = 0; i < _timeSamples.size(); i++) {
-            auto sample = _timeSamples[i];
-
+        // minimum, maximum and average
+        for (auto sample : _timeSamples) {
             _averageTime += sample; // TODO: can it overflow?
 
             if (sample < _minimalTime)
