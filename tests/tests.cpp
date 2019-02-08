@@ -2,6 +2,7 @@
 #include <benchmark.h>
 #include <thread>
 #include <chrono>
+#include <iostream>
 
 static BenchmarkSetup bs;
 
@@ -44,6 +45,17 @@ TEST(Main, CustomSamples)
     ASSERT_EQ(b.medianTime(), std::chrono::milliseconds(3));
     ASSERT_EQ(b.totalIterations(), 4);
     ASSERT_EQ(b.totalTimeRun(), std::chrono::milliseconds(10));
+}
+
+TEST(Main, StdDeviation)
+{
+    Benchmark b(bs);
+    
+    b.run([](){
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000 + (rand() % 400 - 200)));
+    });
+    
+    std::cout << "Test stddev: " << b.printTime(b.standardDeviation()) << std::endl;
 }
 
 int main(int argc, char **argv)
