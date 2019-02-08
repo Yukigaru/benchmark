@@ -185,6 +185,7 @@ public:
     // TODO: cpu core affinity?
     // TODO: remove deviations
     // TODO: unit-tests
+    // TODO: DoNotOptimize(v1, v2, v3, ...); -> return
     template <typename F>
     void run(F &&func)
     {
@@ -202,6 +203,7 @@ public:
         auto lastTimeDotPrinted = std::chrono::steady_clock::now();
         
         // TODO: run until deviation is small
+        // TODO: remove first run
         for (unsigned i = 0; i < 15; i++) {
             auto timeStart = std::chrono::steady_clock::now();
 
@@ -211,7 +213,7 @@ public:
             auto timeEnd = std::chrono::steady_clock::now();
             auto sample = std::chrono::duration_cast<std::chrono::nanoseconds>(timeEnd - timeStart);
             if (sample < std::chrono::nanoseconds(1))
-                sample = std::chrono::nanoseconds(10);
+                sample = std::chrono::nanoseconds(1);
 
             if (firstRun && sample < std::chrono::milliseconds(1)) {
                 _repeats = (int)((float)(1000 * 1000) / (float)sample.count() + 0.5f);
