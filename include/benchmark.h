@@ -3,128 +3,32 @@
 #include <chrono>
 #include <vector>
 #include <cmath>
-#include "detail/program_arguments.h"
+#include "detail/config.h"
+#include "detail/dont_optimize.h"
+#include "detail/benchmark_setup.h"
+#include "detail/sample_timer.h"
+#include "detail/statistics.h"
 
 /*
 Usage:
 
 {
     Benchmark b("_name");
-
-    // _setup env
+    // setup env
     b.run([&](){ ... }); // runs the lambda function many times and measures the timings
     // teardown env
 }
 
+BENCHMARK("Name") {
+	// << setup here
+	
+	auto t = benchmark.start();
+	...
+	t.stop();
+	
+	// << teardown here
+}
 */
-
-#if defined(__GNUC__)
-#define BENCHMARK_UNUSED __attribute__((unused))
-#define BENCHMARK_ALWAYS_INLINE __attribute__((always_inline))
-#elif defined(_MSC_VER) && !defined(__clang__)
-#define BENCHMARK_UNUSED
-#define BENCHMARK_ALWAYS_INLINE __forceinline
-#else
-#define BENCHMARK_UNUSED
-#define BENCHMARK_ALWAYS_INLINE
-#endif
-
-#if (!defined(__GNUC__) && !defined(__clang__)) || defined(__pnacl__) || defined(__EMSCRIPTEN__)
-#define BENCHMARK_HAS_NO_INLINE_ASSEMBLY
-#endif
-
-namespace benchmark {
-
-void UseCharPointer(char const volatile *);
-
-// The DoNotOptimize(...) function can be used to prevent a value or
-// expression from being optimized away by the compiler. This function is
-// intended to add little to no overhead.
-// See: https://youtu.be/nXaxk27zwlk?t=2441
-#ifndef BENCHMARK_HAS_NO_INLINE_ASSEMBLY
-template <class Tp>
-inline BENCHMARK_ALWAYS_INLINE void DoNotOptimize(Tp const &value)
-{
-    asm volatile("" : : "r,m"(value) : "memory");
-}
-
-template <class Tp>
-inline BENCHMARK_ALWAYS_INLINE void DoNotOptimize(Tp &value)
-{
-#if defined(__clang__)
-    asm volatile("" : "+r,m"(value) : : "memory");
-#else
-    asm volatile("" : "+m,r"(value) : : "memory");
-#endif
-}
-
-// Force the compiler to flush pending writes to global memory. Acts as an
-// effective read/write barrier
-inline BENCHMARK_ALWAYS_INLINE void ClobberMemory()
-{
-    asm volatile("" : : : "memory");
-}
-#elif defined(_MSC_VER)
-template <class Tp>
-inline BENCHMARK_ALWAYS_INLINE void DoNotOptimize(Tp const &value)
-{
-    benchmark::UseCharPointer(&reinterpret_cast<char const volatile &>(value));
-    _ReadWriteBarrier();
-}
-
-inline BENCHMARK_ALWAYS_INLINE void ClobberMemory()
-{
-    _ReadWriteBarrier();
-}
-#else
-template <class Tp>
-inline BENCHMARK_ALWAYS_INLINE void DoNotOptimize(Tp const &value)
-{
-    benchmark::UseCharPointer(&reinterpret_cast<char const volatile &>(value));
-}
-#endif
-
-} // namespace benchmark
-
-struct BenchmarkSetup {
-    enum OutputStyle {
-        Table,
-        OneLine,
-        Lines,
-        Nothing
-    };
-
-    BenchmarkSetup():
-        outputStyle(OutputStyle::Table),
-        verbose(false),
-        skipWarmup(false)
-    {
-    }
-    
-    BenchmarkSetup(int argc, const char **argv):
-        BenchmarkSetup()
-    {
-        ProgramArguments args(argc, argv);
-        
-        std::string outputStyle = args.after("output");
-        if (outputStyle == "lines") {
-            outputStyle = OutputStyle::Lines;
-        } else if (outputStyle == "oneline") {
-            outputStyle = OutputStyle::OneLine;
-        } else if (outputStyle == "table") {
-            outputStyle = OutputStyle::Table;
-        } else {
-            fprintf(stderr, "Unexpected value of 'output' argument: %s\n", outputStyle.c_str());
-        }
-        
-        verbose = args.contains("verbose");
-        skipWarmup = args.contains("skipWarmup");
-    }
-
-    OutputStyle outputStyle;
-    bool verbose;
-    bool skipWarmup;
-};
 
 class Benchmark {
     using duration_mcs_t = std::chrono::steady_clock::rep;
@@ -132,48 +36,52 @@ class Benchmark {
 
     std::string _name;
     BenchmarkSetup _setup;
-    
-    unsigned _totalIterations;
-    unsigned _repeats;
-    duration_t _totalTimeRun;
-    duration_t _averageTime;
-    duration_t _medianTime;
-    duration_t _minimalTime;
-    duration_t _maximalTime;
-    duration_t _standardDeviation;
 
-    std::vector<duration_t> _timeSamples;
+    TimeStatistics _stats;
+    unsigned _totalIterations;
+
+    unsigned Iterations;
+    bool _run_once;
+
+    IVarInt *variable;
 
 public:
-    Benchmark(const char *name_ = "")
-        : Benchmark(BenchmarkSetup(), name_)
+    Benchmark(const char *name_ = "", benchmark::IVarInt* variable = nullptr)
+        : Benchmark(BenchmarkSetup(), name_, variable)
     {
     }
     
-    Benchmark(const BenchmarkSetup &setup_, const char *name_ = "")
+    Benchmark(const BenchmarkSetup &setup_, const char *name_ = "", benchmark::IVarInt* variable = nullptr)
         : _name(name_)
         , _setup(setup_)
         , _totalIterations(0)
-        , _repeats(1)
-        , _totalTimeRun(0)
-        , _averageTime(0)
-        , _medianTime(0)
-        , _minimalTime(0)
-        , _maximalTime(0)
-        , _standardDeviation(0)
+        , Iterations(10)
+        , _run_once(false)
+        , variable(variable)
     {
+    }
+
+    ~Benchmark() {
+        if (variable)
+            delete variable;
     }
     
     void warmupCpu() {
+        static bool onlyOnce = false;
+        if (onlyOnce)
+            return;
+        onlyOnce = true;
+
         if (_setup.verbose) {
             printf("Warming up CPU\n");
         }
 
-        static const int WarmupTimeSec = 3;
+        static const int WarmupTimeSec = 4;
         
         auto start = std::chrono::steady_clock::now(); // do nothing serious for N seconds cycle
         while (true) {
-            int p = rand();
+            unsigned p = rand();
+            benchmark::DoNotOptimize(p);
             auto end = std::chrono::steady_clock::now();
             if (end - start > std::chrono::seconds(WarmupTimeSec))
                 break;
@@ -181,70 +89,68 @@ public:
     }
 
     // TODO: variadic template args
-    // TODO: BENCHMARK macro
+    // TODO: variable arguments
     // TODO: cpu core affinity?
     // TODO: remove deviations
     // TODO: unit-tests
-    // TODO: DoNotOptimize(v1, v2, v3, ...); -> return
+    // TODO: get CORE load and print warning
+    // TODO: calculate statistical significance
+    // TODO: warning in DEBUG
+    // TODO: detect CPU scaling
+    // TODO: colorization
+    // TODO: unit-test do nothing
     template <typename F>
     void run(F &&func)
     {
-        printf("[Benchmark] '%s' started", _name.c_str());
-
-        static constexpr int SamplesNumber = 1000;
-        _timeSamples.reserve(256);
+        if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full)
+            printf("[Benchmark '%s'] started", _name.c_str());
 
         bool firstRun = true;
-        
+        unsigned repeats = 1;
+
         if (!_setup.skipWarmup) {
             warmupCpu();
         }
-        
-        auto lastTimeDotPrinted = std::chrono::steady_clock::now();
-        
-        // TODO: run until deviation is small
-        // TODO: remove first run
-        for (unsigned i = 0; i < 15; i++) {
-            auto timeStart = std::chrono::steady_clock::now();
 
-            for (unsigned j = 0; j < _repeats; j++)
-                func();
+        if (_run_once) {
+            Iterations = 1;
+        }
 
-            auto timeEnd = std::chrono::steady_clock::now();
-            auto sample = std::chrono::duration_cast<std::chrono::nanoseconds>(timeEnd - timeStart);
-            if (sample < std::chrono::nanoseconds(1))
-                sample = std::chrono::nanoseconds(1);
+        // TODO: run until data is statistically significant
+        for (unsigned i = 0; i < Iterations; i++) {
+            benchmark::detail::SampleTimer st(repeats);
+            st.start();
+            func(st);
+            st.stop();
 
-            if (firstRun && sample < std::chrono::milliseconds(1)) {
-                _repeats = (int)((float)(1000 * 1000) / (float)sample.count() + 0.5f);
+            auto sample = st.getSample();
+
+            if (!_run_once && firstRun && sample < std::chrono::milliseconds(1)) {
+                repeats = (int)(1000.0f * 1000.0f / (float)sample.count() + 0.5f);
+                _stats.setRepeats(repeats);
                 i--;
                 firstRun = false;
                 continue;
             }
 
-            _totalIterations += _repeats;
+            _totalIterations += _stats.repeats();
             firstRun = false;
-            _totalTimeRun += sample;
-            _timeSamples.push_back(sample);
-
-            if (timeEnd - lastTimeDotPrinted > std::chrono::seconds(3)) {
-                lastTimeDotPrinted = timeEnd;
-                printf(".");
-            }
+            _stats.addSample(sample);
         }
 
-        if (_timeSamples.size() > SamplesNumber)
-            _timeSamples.erase(_timeSamples.begin(), _timeSamples.begin() + (SamplesNumber - _timeSamples.size()));
-
         printf("\n");
-
         calculateTimings();
         printResults();
     }
 
+    template <typename F>
+    void run_once(F &&func) {
+        _run_once = true;
+        run(func);
+    }
+
     void debugAddSample(std::chrono::steady_clock::duration sample) {
-        _timeSamples.push_back(sample);
-        _totalTimeRun += sample;
+        _stats.addSample(sample);
         _totalIterations++;
     }
 
@@ -277,75 +183,51 @@ public:
 
     bool calculateTimings()
     {
-        if (_timeSamples.empty())
-            return false;
-
-        _averageTime = duration_t(0);
-        _minimalTime = _maximalTime = _timeSamples[0];
-
-        // minimum, maximum and average
-        for (auto sample : _timeSamples) {
-            _averageTime += sample; // TODO: can it overflow?
-
-            if (sample < _minimalTime)
-                _minimalTime = sample;
-            if (sample > _maximalTime)
-                _maximalTime = sample;
-        }
-
-        _minimalTime /= _repeats;
-        _maximalTime /= _repeats;
-        _averageTime /= (_timeSamples.size() * _repeats);
-
-        // standard deviation
-        auto averageNs = std::chrono::duration_cast<std::chrono::nanoseconds>(_averageTime).count();
-        unsigned long long sumOfSquares = 0;
-
-        for (size_t i = 0; i < _timeSamples.size(); i++) {
-            auto sampleNs = _timeSamples[i].count() / _repeats;
-
-            auto d = (sampleNs > averageNs) ? (sampleNs - averageNs) : (averageNs - sampleNs);
-            sumOfSquares += d * d;
-        }
-        sumOfSquares /= _timeSamples.size();
-        long long stdDevNs = llround(sqrtl((double)sumOfSquares));
-        _standardDeviation = std::chrono::nanoseconds(stdDevNs);
-
-        // median
-        std::sort(_timeSamples.begin(), _timeSamples.end());
-
-        _medianTime = _timeSamples[_timeSamples.size() / 2] / _repeats;
-
-        return true;
+        return _stats.calculate();
     }
 
     void printResults()
     {
-        if (_repeats == 1)
-            printf("Done %u iters, total ", _totalIterations);
-        else
-            printf("Done %u iters (%u per sample), total spent ", _totalIterations, _repeats);
-        printTime(_totalTimeRun);
-        printf("\n");
-
-        printf("Avg    : ");
-        printTime(_averageTime);
-        if (_averageTime > std::chrono::milliseconds(1))
-            printf(" (%.2f fps)\n", 1000.0f / std::chrono::duration_cast<std::chrono::milliseconds>(_averageTime).count());
-        else
+        if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full) {
+            if (_stats.repeats() == 1)
+                printf("Done %u iters, total ", _totalIterations);
+            else
+                printf("Done %u iters (%u per sample), total spent ", _totalIterations, _stats.repeats());
+            printTime(_stats.totalTimeRun());
             printf("\n");
 
-        printf("StdDev : ");
-        printTime(_standardDeviation);
-        printf("\n");
+            printf("Avg    : ");
+            printTime(_stats.averageTime());
+            if (_stats.averageTime() > std::chrono::milliseconds(1))
+                printf(" (%.2f fps)\n",
+                       1000.0f / std::chrono::duration_cast<std::chrono::milliseconds>(_stats.averageTime()).count());
+            else
+                printf("\n");
 
-        printf("Median : ");
-        printTime(_medianTime);
-        printf("\n");
+            printf("StdDev : ");
+            printTime(_stats.standardDeviation());
+            printf("\n");
 
-        printf("Min    : ");
-        printTime(_minimalTime);
-        printf("\n\n");
+            printf("Median : ");
+            printTime(_stats.medianTime());
+            printf("\n");
+
+            printf("Min    : ");
+            printTime(_stats.minimalTime());
+            printf("\n");
+        }
+        else if (_setup.outputStyle == BenchmarkSetup::OutputStyle::OneLine) {
+            printf("[Benchmark '%s'] %u iters, ", _name.c_str(), _totalIterations);
+
+            printf("avg: ");
+            printTime(_stats.averageTime());
+            if (_stats.averageTime() > std::chrono::milliseconds(1))
+                printf(" (%.2f fps)",
+                       1000.0f / std::chrono::duration_cast<std::chrono::milliseconds>(_stats.averageTime()).count());
+
+            printf(", stddev: ");
+            printTime(_stats.standardDeviation());
+        }
     }
 
     unsigned totalIterations() const {
@@ -353,30 +235,134 @@ public:
     }
 
     unsigned repeats() const {
-        return _repeats;
+        return _stats.repeats();
     }
 
     duration_t totalTimeRun() const {
-        return _totalTimeRun;
+        return _stats.totalTimeRun();
     }
 
     duration_t averageTime() const {
-        return _averageTime;
+        return _stats.averageTime();
     }
 
     duration_t medianTime() const {
-        return _medianTime;
+        return _stats.medianTime();
     }
 
     duration_t minimalTime() const {
-        return _minimalTime;
+        return _stats.minimalTime();
     }
 
     duration_t maximalTime() const {
-        return _maximalTime;
+        return _stats.maximalTime();
     }
 
     duration_t standardDeviation() const {
-        return _standardDeviation;
+        return _stats.standardDeviation();
     }
 };
+
+namespace benchmark {
+    class IVarInt {
+    public:
+        using int_type_t = long long;
+
+        virtual ~IVarInt() {}
+
+        virtual bool done() = 0;
+        virtual int_type_t getNext() = 0;
+    };
+
+    class VarIntLinear: public IVarInt {
+        int_type_t _value;
+        int_type_t _to;
+        int_type_t _step;
+
+    public:
+        VarIntLinear(int_type_t from, int_type_t to, int_type_t step):
+            _value(from),
+            _to(to),
+            _step(step)
+        {
+        }
+
+        bool done() override {
+            return _value > _to;
+        }
+
+        int_type_t getNext() override {
+            int_type_t ret = _value;
+            _value += step;
+            return ret;
+        }
+    };
+
+    class VarIntLog2: public IVarInt {
+        using int_type_t = long long;
+        int_type_t _value;
+        int_type_t _to;
+
+    public:
+        VarIntLog2(int_type_t from, int_type_t to):
+            _value(from),
+            _to(to)
+        {
+        }
+
+        bool done() override {
+            return _value > _to;
+        }
+
+        int_type_t getNext() override {
+            int_type_t ret = _value;
+            _value *= 2;
+            return ret;
+        }
+    };
+
+    class VarIntLog10: public IVarInt {
+        using int_type_t = long long;
+        int_type_t _value;
+        int_type_t _to;
+
+    public:
+        VarIntLog10(int_type_t from, int_type_t to):
+            _value(from),
+            _to(to)
+        {
+        }
+
+        bool done() override {
+            return _value > _to;
+        }
+
+        int_type_t getNext() override {
+            int_type_t ret = _value;
+            _value *= 10;
+            return ret;
+        }
+    };
+
+}
+
+#define BENCHMARK(Name, Var1) \
+    static struct Benchmark##Name: public Benchmark { \
+        Benchmark##Name(const char *name, IVarInt *variable = nullptr); \
+        static BENCHMARK_ALWAYS_INLINE void testedFunc(benchmark::detail::SampleTimer &); \
+    } tmp##Name(#Name); \
+    \
+    Benchmark##Name::Benchmark##Name(const char *name, IVarInt *variable) : Benchmark(name, variable) { \
+        run(&Benchmark##Name::testedFunc); \
+    } \
+    \
+    void BENCHMARK_ALWAYS_INLINE Benchmark##Name::testedFunc(benchmark::detail::SampleTimer &st)
+
+#define MEASURE_START st.start();
+#define MEASURE_STOP st.stop();
+
+#define MEASURE(code) MEASURE_START; for (unsigned j = 0; j < st.repeats(); j++){ code; } MEASURE_STOP;
+#define MEASURE_ONCE(code) MEASURE_START; { code; } MEASURE_STOP;
+
+#define REPEAT(n) for (unsigned i = 0; i < n; ++i)
+
