@@ -11,11 +11,11 @@ TEST(Benchmark, Durations)
     for (int timeMs = 10; timeMs <= 1000; timeMs *= 10)
     {
         Benchmark b(bs);
-        b.run([=]() { std::this_thread::sleep_for(std::chrono::milliseconds(timeMs)); });
-        ASSERT_NEAR(std::chrono::milliseconds(timeMs).count(),
-                    std::chrono::duration_cast<std::chrono::milliseconds>(b.averageTime()).count(), 10);
-        ASSERT_NEAR(std::chrono::milliseconds(timeMs).count(),
-                    std::chrono::duration_cast<std::chrono::milliseconds>(b.medianTime()).count(), 10);
+        b.run([=](benchmark::detail::SampleTimer &) { std::this_thread::sleep_for(std::chrono::milliseconds(timeMs)); });
+        ASSERT_NEAR((double)std::chrono::milliseconds(timeMs).count(),
+                    (double)std::chrono::duration_cast<std::chrono::milliseconds>(b.averageTime()).count(), 10.0);
+        ASSERT_NEAR((double)std::chrono::milliseconds(timeMs).count(),
+                    (double)std::chrono::duration_cast<std::chrono::milliseconds>(b.medianTime()).count(), 10.0);
         ASSERT_GT(b.averageTime(), std::chrono::steady_clock::duration(0));
         ASSERT_GT(b.minimalTime(), std::chrono::steady_clock::duration(0));
         ASSERT_GT(b.medianTime(), std::chrono::steady_clock::duration(0));
@@ -25,7 +25,7 @@ TEST(Benchmark, Durations)
         ASSERT_LE(b.averageTime(), b.maximalTime());
         ASSERT_LE(b.medianTime(), b.maximalTime());
         ASSERT_LE(b.minimalTime(), b.maximalTime());
-        ASSERT_GT(b.totalIterations(), 0);
+        ASSERT_GT(b.totalIterations(), 0u);
     }
 }
 
@@ -51,16 +51,20 @@ TEST(Main, StdDeviation)
 {
     Benchmark b(bs);
     
-    b.run([](){
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000 + (rand() % 400 - 200)));
+    b.run([](benchmark::detail::SampleTimer &){
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     });
     
-    std::cout << "Test stddev: " << b.printTime(b.standardDeviation()) << std::endl;
+    std::cout << "Test stddev: ";
+    b.printTime(b.standardDeviation());
+    std::cout << std::endl;
 }
 
 int main(int argc, char **argv)
 {
     bs.outputStyle = BenchmarkSetup::Nothing;
+    bs.verbose = true;
+
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
