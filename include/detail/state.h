@@ -20,6 +20,7 @@ namespace benchmark {
             ArgumentRange range;
             GrowthType growth;
             bool growing;
+            int value;
         };
 
         bool isPowerOf2(int number) {
@@ -43,11 +44,16 @@ namespace benchmark {
         }
 
         class BenchmarkState {
+            bool _firstTime;
+
             std::vector<VariableArgument> _variableArguments;
+            int _currentArg1;
+            bool _variablesDone;
+
             bool _needRestart;
 
         public:
-            BenchmarkState() :_needRestart(false) {
+            BenchmarkState() :_firstTime(true), _needRestart(false), _currentArg1(0), _variablesDone(true) {
             }
 
             bool addArgument(int from, int to) {
@@ -55,12 +61,70 @@ namespace benchmark {
                 if (i == _variableArguments.end()) {
                     GrowthType growthType = findGrowthType(from, to);
                     bool growing = to > from;
-                    _variableArguments.emplace_back(VariableArgument{{from, to}, growthType, growing});
+                    _variableArguments.emplace_back(VariableArgument{{from, to}, growthType, growing, from});
+                    _variablesDone = false;
                     _needRestart = true;
                     return true;
                 }
                 _needRestart = false;
                 return false;
+            }
+
+            void pickNextArgument() {
+                if (_variableArguments.empty()) {
+                    return;
+                }
+
+                VariableArgument &varg = _variableArguments[0];
+
+                _currentArg1 = varg.value;
+
+                switch (varg.growth) {
+                    case Linear: {
+                        varg.value += varg.growing ? 1 : -1;
+                        break;
+                    }
+                    case Exponential2: {
+                        if (varg.growing) {
+                            varg.value *= 2;
+                        } else {
+                            varg.value /= 2;
+                        }
+                        break;
+                    }
+                    case Exponential10: {
+                        if (varg.growing) {
+                            varg.value *= 10;
+                        } else {
+                            varg.value /= 10;
+                        }
+                        break;
+                    }
+                }
+
+                if ((varg.growing && varg.value > varg.range.second) ||
+                    (!varg.growing && varg.value < varg.range.second)) {
+                    _variablesDone = true;
+                }
+            }
+
+            bool running() {
+                if (_variableArguments.empty()) {
+                    // without variable arguments we just run only once
+                    bool result = _firstTime;
+                    _firstTime = false;
+                    return result;
+                }
+
+                return !_variablesDone;
+            }
+
+            bool variableArgsMode() const {
+                return !_variableArguments.empty();
+            }
+
+            BENCHMARK_ALWAYS_INLINE int getArg() {
+                return _currentArg1;
             }
 
             bool needRestart() const {
@@ -108,7 +172,7 @@ namespace benchmark {
             }
 
             BENCHMARK_ALWAYS_INLINE int arg1() const {
-                return 0; // TODO: Implement
+                return _bstate.getArg();
             }
         };
     }
