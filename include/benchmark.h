@@ -3,11 +3,14 @@
 #include <chrono>
 #include <vector>
 #include <cmath>
+#include <mutex>
 #include "detail/config.h"
 #include "detail/dont_optimize.h"
 #include "detail/benchmark_setup.h"
-#include "detail/sample_timer.h"
+#include "detail/state.h"
 #include "detail/statistics.h"
+#include "detail/variables.h"
+#include "detail/cpu_scaling.h"
 
 /*
 Usage:
@@ -43,27 +46,24 @@ class Benchmark {
     unsigned Iterations;
     bool _run_once;
 
-    IVarInt *variable;
+    static std::once_flag warnDebugMode;
 
 public:
-    Benchmark(const char *name_ = "", benchmark::IVarInt* variable = nullptr)
-        : Benchmark(BenchmarkSetup(), name_, variable)
+    Benchmark(const char *name_ = "")
+        : Benchmark(BenchmarkSetup(), name_)
     {
     }
     
-    Benchmark(const BenchmarkSetup &setup_, const char *name_ = "", benchmark::IVarInt* variable = nullptr)
+    Benchmark(const BenchmarkSetup &setup_, const char *name_ = "")
         : _name(name_)
         , _setup(setup_)
         , _totalIterations(0)
         , Iterations(10)
         , _run_once(false)
-        , variable(variable)
     {
     }
 
     ~Benchmark() {
-        if (variable)
-            delete variable;
     }
     
     void warmupCpu() {
@@ -73,7 +73,7 @@ public:
         onlyOnce = true;
 
         if (_setup.verbose) {
-            printf("Warming up CPU\n");
+            printf("Warming up CPU.\n");
         }
 
         static const int WarmupTimeSec = 4;
@@ -88,47 +88,58 @@ public:
         }
     }
 
-    // TODO: variadic template args
     // TODO: variable arguments
-    // TODO: cpu core affinity?
     // TODO: remove deviations
     // TODO: unit-tests
     // TODO: get CORE load and print warning
     // TODO: calculate statistical significance
-    // TODO: warning in DEBUG
-    // TODO: detect CPU scaling
     // TODO: colorization
-    // TODO: unit-test do nothing
+    // TODO: do_nothing unit-test
+    // TODO: change include/benchmark.h to include/benchmark/benchmark.h
     template <typename F>
     void run(F &&func)
     {
+#ifdef _DEBUG
+#pragma message("Warning: Benchmark library is being compiled in a Debug configuration.")
+        std::call_once(warnDebugMode, [](){ printf("Warning: Running in a Debug configuration\n"; });
+#endif
+
+        if (!_setup.skipWarmup) {
+            if (isCPUScalingEnabled()) {
+                printf("Warning: CPU power-safe mode enabled. Will try to warm up before the benchmark.\n");
+                warmupCpu();
+            }
+        }
+
         if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full)
             printf("[Benchmark '%s'] started", _name.c_str());
 
         bool firstRun = true;
         unsigned repeats = 1;
 
-        if (!_setup.skipWarmup) {
-            warmupCpu();
-        }
-
         if (_run_once) {
             Iterations = 1;
         }
 
-        // TODO: run until data is statistically significant
-        for (unsigned i = 0; i < Iterations; i++) {
-            benchmark::detail::SampleTimer st(repeats);
-            st.start();
-            func(st);
-            st.stop();
+        benchmark::detail::BenchmarkState bs;
 
-            auto sample = st.getSample();
+        // TODO: run until data is statistically significant
+        for (unsigned i = 0; i < Iterations;) {
+            benchmark::detail::RunState state(bs, repeats);
+
+            state.start();
+            func(state);
+            state.stop();
+
+            auto sample = state.getSample();
+
+            if (bs.needRestart()) {
+                continue;
+            }
 
             if (!_run_once && firstRun && sample < std::chrono::milliseconds(1)) {
                 repeats = (int)(1000.0f * 1000.0f / (float)sample.count() + 0.5f);
                 _stats.setRepeats(repeats);
-                i--;
                 firstRun = false;
                 continue;
             }
@@ -136,6 +147,7 @@ public:
             _totalIterations += _stats.repeats();
             firstRun = false;
             _stats.addSample(sample);
+            i++;
         }
 
         printf("\n");
@@ -263,106 +275,28 @@ public:
     }
 };
 
-namespace benchmark {
-    class IVarInt {
-    public:
-        using int_type_t = long long;
 
-        virtual ~IVarInt() {}
-
-        virtual bool done() = 0;
-        virtual int_type_t getNext() = 0;
-    };
-
-    class VarIntLinear: public IVarInt {
-        int_type_t _value;
-        int_type_t _to;
-        int_type_t _step;
-
-    public:
-        VarIntLinear(int_type_t from, int_type_t to, int_type_t step):
-            _value(from),
-            _to(to),
-            _step(step)
-        {
-        }
-
-        bool done() override {
-            return _value > _to;
-        }
-
-        int_type_t getNext() override {
-            int_type_t ret = _value;
-            _value += step;
-            return ret;
-        }
-    };
-
-    class VarIntLog2: public IVarInt {
-        using int_type_t = long long;
-        int_type_t _value;
-        int_type_t _to;
-
-    public:
-        VarIntLog2(int_type_t from, int_type_t to):
-            _value(from),
-            _to(to)
-        {
-        }
-
-        bool done() override {
-            return _value > _to;
-        }
-
-        int_type_t getNext() override {
-            int_type_t ret = _value;
-            _value *= 2;
-            return ret;
-        }
-    };
-
-    class VarIntLog10: public IVarInt {
-        using int_type_t = long long;
-        int_type_t _value;
-        int_type_t _to;
-
-    public:
-        VarIntLog10(int_type_t from, int_type_t to):
-            _value(from),
-            _to(to)
-        {
-        }
-
-        bool done() override {
-            return _value > _to;
-        }
-
-        int_type_t getNext() override {
-            int_type_t ret = _value;
-            _value *= 10;
-            return ret;
-        }
-    };
-
-}
-
-#define BENCHMARK(Name, Var1) \
+#define BENCHMARK(Name) \
     static struct Benchmark##Name: public Benchmark { \
-        Benchmark##Name(const char *name, IVarInt *variable = nullptr); \
-        static BENCHMARK_ALWAYS_INLINE void testedFunc(benchmark::detail::SampleTimer &); \
+        Benchmark##Name(const char *name); \
+        static BENCHMARK_ALWAYS_INLINE void testedFunc(benchmark::detail::RunState &); \
     } tmp##Name(#Name); \
     \
-    Benchmark##Name::Benchmark##Name(const char *name, IVarInt *variable) : Benchmark(name, variable) { \
+    Benchmark##Name::Benchmark##Name(const char *name) : Benchmark(name) { \
         run(&Benchmark##Name::testedFunc); \
     } \
     \
-    void BENCHMARK_ALWAYS_INLINE Benchmark##Name::testedFunc(benchmark::detail::SampleTimer &st)
+    void BENCHMARK_ALWAYS_INLINE Benchmark##Name::testedFunc(benchmark::detail::RunState &state)
 
-#define MEASURE_START st.start();
-#define MEASURE_STOP st.stop();
+#define MEASURE_START state.start();
+#define MEASURE_STOP state.stop();
 
-#define MEASURE(code) MEASURE_START; for (unsigned j = 0; j < st.repeats(); j++){ code; } MEASURE_STOP;
+#define MEASURE(code) MEASURE_START; for (unsigned j = 0; j < state.repeats(); j++){ code; } MEASURE_STOP;
 #define MEASURE_ONCE(code) MEASURE_START; { code; } MEASURE_STOP;
 
 #define REPEAT(n) for (unsigned i = 0; i < n; ++i)
 
+#define ADD_ARG_RANGE(from, to) if (state.addArgument(from, to)) return; MEASURE_START
+#define ARG1 state.arg1()
+
+#define BENCHMARK_MAIN int main(int argc, char **argv) { return 0; }

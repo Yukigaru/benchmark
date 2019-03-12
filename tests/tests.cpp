@@ -11,7 +11,7 @@ TEST(Benchmark, Durations)
     for (int timeMs = 10; timeMs <= 1000; timeMs *= 10)
     {
         Benchmark b(bs);
-        b.run([=](benchmark::detail::SampleTimer &) { std::this_thread::sleep_for(std::chrono::milliseconds(timeMs)); });
+        b.run([=](benchmark::detail::RunState &) { std::this_thread::sleep_for(std::chrono::milliseconds(timeMs)); });
         ASSERT_NEAR((double)std::chrono::milliseconds(timeMs).count(),
                     (double)std::chrono::duration_cast<std::chrono::milliseconds>(b.averageTime()).count(), 10.0);
         ASSERT_NEAR((double)std::chrono::milliseconds(timeMs).count(),
@@ -51,7 +51,7 @@ TEST(Main, StdDeviation)
 {
     Benchmark b(bs);
     
-    b.run([](benchmark::detail::SampleTimer &){
+    b.run([](benchmark::detail::RunState &){
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     });
     
