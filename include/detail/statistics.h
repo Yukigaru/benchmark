@@ -37,10 +37,15 @@ public:
         _samples.push_back(sample);
     }
 
+    void clear() {
+	_samples.clear();
+    }
+
     bool calculate() {
         if (_samples.empty())
             return false;
 
+	_totalTimeRun = std::chrono::steady_clock::duration(0);
         _averageTime = std::chrono::steady_clock::duration(0);
         _maximalTime = _minimalTime = _samples[0];
 
