@@ -38,14 +38,14 @@ public:
     }
 
     void clear() {
-	_samples.clear();
+        _samples.clear();
     }
 
     bool calculate() {
         if (_samples.empty())
             return false;
 
-	_totalTimeRun = std::chrono::steady_clock::duration(0);
+        _totalTimeRun = std::chrono::steady_clock::duration(0);
         _averageTime = std::chrono::steady_clock::duration(0);
         _maximalTime = _minimalTime = _samples[0];
 
@@ -94,6 +94,10 @@ public:
     
     size_t size() const {
         return _samples.size();
+    }
+
+    bool empty() const {
+        return _samples.empty();
     }
 
     unsigned repeats() const {

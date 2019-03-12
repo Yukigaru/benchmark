@@ -60,6 +60,22 @@ TEST(Main, StdDeviation)
     std::cout << std::endl;
 }
 
+TEST(Main, DoNothing)
+{
+    Benchmark b(bs);
+
+    b.run([](benchmark::detail::RunState &){
+        // do nothing
+    });
+
+    ASSERT_LE(b.averageTime(), std::chrono::nanoseconds(1));
+    ASSERT_LE(b.medianTime(), std::chrono::nanoseconds(1));
+    ASSERT_LE(b.minimalTime(), std::chrono::nanoseconds(1));
+    ASSERT_LE(b.maximalTime(), std::chrono::nanoseconds(1));
+    ASSERT_GT(b.totalIterations(), 1);
+    ASSERT_GT(b.repeats(), 1);
+}
+
 int main(int argc, char **argv)
 {
     bs.outputStyle = BenchmarkSetup::Nothing;

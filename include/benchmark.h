@@ -88,10 +88,9 @@ public:
         }
     }
 
-    // TODO: variable arguments
     // TODO: remove deviations
     // TODO: unit-tests
-    // TODO: get CORE load and print warning
+    // TODO: get core load and print warning
     // TODO: calculate statistical significance
     // TODO: colorization
     // TODO: do_nothing unit-test
@@ -114,45 +113,60 @@ public:
         if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full)
             printf("[Benchmark '%s'] started", _name.c_str());
 
-        bool firstRun = true;
-        unsigned repeats = 1;
-
         if (_run_once) {
             Iterations = 1;
         }
 
         benchmark::detail::BenchmarkState bs;
 
-        // TODO: run until data is statistically significant
-        for (unsigned i = 0; i < Iterations;) {
-            benchmark::detail::RunState state(bs, repeats);
+        while (bs.running()) {
+            bool firstRun = true;
+            unsigned repeats = 1;
 
-            state.start();
-            func(state);
-            state.stop();
-
-            auto sample = state.getSample();
-
-            if (bs.needRestart()) {
-                continue;
+            if (bs.variableArgsMode()) {
+                bs.pickNextArgument();
             }
+            _stats.clear();
 
-            if (!_run_once && firstRun && sample < std::chrono::milliseconds(1)) {
-                repeats = (int)(1000.0f * 1000.0f / (float)sample.count() + 0.5f);
-                _stats.setRepeats(repeats);
+            // TODO: run until data is statistically significant
+            for (unsigned i = 0; i < Iterations;) {
+                benchmark::detail::RunState state(bs, repeats);
+
+                state.start();
+                func(state);
+                state.stop();
+
+                auto sample = state.getSample();
+
+                if (bs.needRestart()) {
+                    break;
+                }
+
+                if (!_run_once && firstRun && sample < std::chrono::milliseconds(1)) {
+                    repeats = (unsigned)lround(1000.0f * 1000.0f / (float)sample.count());
+                    _stats.setRepeats(repeats);
+                    firstRun = false;
+                    continue;
+                }
+
+                _totalIterations += _stats.repeats();
                 firstRun = false;
-                continue;
+                _stats.addSample(sample);
+                i++;
             }
 
-            _totalIterations += _stats.repeats();
-            firstRun = false;
-            _stats.addSample(sample);
-            i++;
-        }
+            if (!_stats.empty()) {
+                printf("\n");
+                calculateTimings();
 
-        printf("\n");
-        calculateTimings();
-        printResults();
+                if (bs.variableArgsMode()) {
+                    int varg1 = bs.getArg();
+                    printResults(&varg1);
+                } else {
+                    printResults(nullptr);
+                }
+            }
+        }
     }
 
     template <typename F>
@@ -198,7 +212,7 @@ public:
         return _stats.calculate();
     }
 
-    void printResults()
+    void printResults(int *varg1 = nullptr)
     {
         if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full) {
             if (_stats.repeats() == 1)
@@ -229,7 +243,12 @@ public:
             printf("\n");
         }
         else if (_setup.outputStyle == BenchmarkSetup::OutputStyle::OneLine) {
-            printf("[Benchmark '%s'] %u iters, ", _name.c_str(), _totalIterations);
+            if (!varg1) {
+                // no variable arguments
+                printf("[Benchmark '%s'] %u iters, ", _name.c_str(), _totalIterations);
+            } else {
+                printf("[Benchmark '%s' $1=%d] %u iters, ", _name.c_str(), *varg1, _totalIterations);
+            }
 
             printf("avg: ");
             printTime(_stats.averageTime());
