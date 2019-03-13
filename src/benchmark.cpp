@@ -1,5 +1,5 @@
 #include <mutex>
-#include "benchmark.h"
+#include <benchmark/benchmark.h>
 
 namespace benchmark {
 
