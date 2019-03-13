@@ -1,4 +1,4 @@
-#include <benchmark.h>
+#include <benchmark/benchmark.h>
 #include <atomic>
 #include <mutex>
 
@@ -33,14 +33,8 @@ BENCHMARK(Nosync) {
 }*/
 
 BENCHMARK(V1) {
-    ADD_ARG_RANGE(1, 64);
+    ADD_ARG_RANGE(8, 2048);
 
-    std::vector<int> v;
-    v.reserve(ARG1);
-    MEASURE_ONCE( REPEAT(164){ v.push_back(i); } )
-
-    benchmark::DoNotOptimize(si);
 }
 
-int main() {
-}
+BENCHMARK_MAIN

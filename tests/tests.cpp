@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <benchmark.h>
+#include <benchmark/benchmark.h>
 #include <thread>
 #include <chrono>
 #include <iostream>
