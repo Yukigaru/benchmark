@@ -1,6 +1,8 @@
 #include <mutex>
 #include <benchmark/benchmark.h>
 
+BenchmarkSilo::BenchmarkCont *BenchmarkSilo::benchmarks;
+
 namespace benchmark {
 
 void UseCharPointer(char const volatile *)
@@ -8,5 +10,3 @@ void UseCharPointer(char const volatile *)
 }
 
 } // namespace benchmark
-
-std::once_flag Benchmark::warnDebugMode;

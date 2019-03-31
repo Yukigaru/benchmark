@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <iostream> // TODO: remove
 
 class TimeStatistics {
 public:
@@ -45,6 +46,13 @@ public:
         if (_samples.empty())
             return false;
 
+        if (1) {
+            for (size_t i = 0; i < _samples.size(); i++) {
+                auto sample = _samples[i];
+                //std::cout << "sample tot: " << sample.count() << "ns, one: " << sample.count() / _repeats << "ns\n";
+            }
+        }
+
         _totalTimeRun = std::chrono::steady_clock::duration(0);
         _averageTime = std::chrono::steady_clock::duration(0);
         _maximalTime = _minimalTime = _samples[0];
@@ -53,7 +61,7 @@ public:
         for (size_t i = 0; i < _samples.size(); i++) {
             auto sample = _samples[i];
 
-            _averageTime += sample; // TODO: can it overflow?
+            _averageTime += sample;
             _totalTimeRun += sample;
 
             if (sample < _minimalTime)
@@ -77,7 +85,7 @@ public:
             sumOfSquares += d * d;
         }
         sumOfSquares /= _samples.size();
-        long long stdDevNs = llround(sqrtl((double)sumOfSquares));
+        long long stdDevNs = llround(sqrt((double)sumOfSquares));
         _standardDeviation = std::chrono::nanoseconds(stdDevNs);
 
         // median

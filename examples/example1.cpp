@@ -2,11 +2,15 @@
 #include <atomic>
 #include <mutex>
 
-static unsigned si = 0;
+#ifdef WIN32
+#else
+#include <unistd.h>
+#include <time.h>
+#include <fcntl.h>
+#endif
 
-/*
-BENCHMARK(Mutex)
-{
+BENCHMARK(Mutex) {
+    static unsigned si = 0;
     std::mutex m;
     MEASURE(
         m.lock();
@@ -14,27 +18,37 @@ BENCHMARK(Mutex)
         m.unlock();
     )
     benchmark::DoNotOptimize(si);
+    benchmark::DoNotOptimize(m);
 }
 
-BENCHMARK(Atomic) {
-    std::atomic_int i = 0;
-    MEASURE(
-        i++;
-    )
+BENCHMARK(AtomicRelaxed) {
+    std::atomic_int i(0);
+    MEASURE(i.fetch_add(1, std::memory_order_relaxed);)
     benchmark::DoNotOptimize(i);
 }
 
-BENCHMARK(Nosync) {
+/*BENCHMARK(Nosync) {
     int i = 0;
     MEASURE(
         i++;
     )
     benchmark::DoNotOptimize(i);
-}*/
-
-BENCHMARK(V1) {
-    ADD_ARG_RANGE(8, 2048);
-
 }
 
-BENCHMARK_MAIN
+BENCHMARK(SyscallClose) {
+    MEASURE(
+        close(123);
+    )
+}
+
+BENCHMARK(SyscallGetTime) {
+    timespec ts;
+    clockid_t cid = CLOCK_PROCESS_CPUTIME_ID;
+    MEASURE(
+        clock_gettime(cid, &ts);
+    )
+}*/
+
+int main() {
+    RUN_BENCHMARKS
+}
