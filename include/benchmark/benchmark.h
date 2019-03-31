@@ -34,9 +34,6 @@ BENCHMARK("Name") {
 */
 
 class Benchmark {
-    using duration_mcs_t = std::chrono::steady_clock::rep;
-    using duration_t = std::chrono::steady_clock::duration;
-
     std::string _name;
     BenchmarkSetup _setup;
 
@@ -44,9 +41,8 @@ class Benchmark {
     unsigned _totalIterations;
 
     unsigned Iterations;
-    bool _run_once;
 
-    static std::once_flag warnDebugMode;
+    benchmark::duration_t _noopTime{0};
 
 public:
     Benchmark(const char *name_ = "")
@@ -59,8 +55,10 @@ public:
         , _setup(setup_)
         , _totalIterations(0)
         , Iterations(10)
-        , _run_once(false)
     {
+        // it seems that clock's now() takes longer when called first time
+        auto init_timer = benchmark::clock_t::now();
+        benchmark::DoNotOptimize(init_timer);
     }
 
     ~Benchmark() {
@@ -72,50 +70,62 @@ public:
             return;
         onlyOnce = true;
 
-        if (_setup.verbose) {
-            printf("Warming up CPU.\n");
-        }
+        printf("Warning: CPU power-safe mode enabled. Will try to warm up before the benchmark.\n");
 
         static const int WarmupTimeSec = 4;
         
-        auto start = std::chrono::steady_clock::now(); // do nothing serious for N seconds cycle
+        auto start = benchmark::clock_t::now(); // do nothing serious for N seconds cycle
         while (true) {
             unsigned p = rand();
             benchmark::DoNotOptimize(p);
-            auto end = std::chrono::steady_clock::now();
+            auto end = benchmark::clock_t::now();
             if (end - start > std::chrono::seconds(WarmupTimeSec))
                 break;
         }
     }
 
+    void findNoopTime() {
+        _noopTime = std::chrono::nanoseconds(9999);
+        for (int i = 0; i < 20; i++) {
+            auto d = benchmark::clock_t::now() - benchmark::clock_t::now();
+            if (d < _noopTime) {
+                _noopTime = d;
+            }
+        }
+        if (1){ //if (_setup.verbose) {
+            //printf("noopTime=%dns\n", (int)std::chrono::duration_cast<std::chrono::nanoseconds>(_noopTime).count());
+        }
+    }
+
+    virtual void vrun() {
+    }
+
+    // TODO: think out how to do tear-up/down
+    // TODO: rework to run tests within main
     // TODO: remove deviations
-    // TODO: unit-tests
-    // TODO: get core load and print warning
+    // TODO: get core load-average and print warning
     // TODO: calculate statistical significance
+    // TODO: run until data is statistically significant
     // TODO: colorization
-    // TODO: do_nothing unit-test
-    // TODO: change include/benchmark.h to include/benchmark/benchmark.h
+    // TODO: print (!) if stddev is too high or too low
     template <typename F>
     void run(F &&func)
     {
 #ifdef _DEBUG
 #pragma message("Warning: Benchmark library is being compiled in a Debug configuration.")
-        std::call_once(warnDebugMode, [](){ printf("Warning: Running in a Debug configuration\n"; });
+        static std::once_flag warnDebugMode;
+        std::call_once(warnDebugMode, [](){ printf("Warning: Running in a Debug configuration\n"); });
 #endif
-
         if (!_setup.skipWarmup) {
             if (isCPUScalingEnabled()) {
-                printf("Warning: CPU power-safe mode enabled. Will try to warm up before the benchmark.\n");
                 warmupCpu();
             }
         }
 
+        findNoopTime();
+
         if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full)
             printf("[Benchmark '%s'] started", _name.c_str());
-
-        if (_run_once) {
-            Iterations = 1;
-        }
 
         benchmark::detail::BenchmarkState bs;
 
@@ -128,13 +138,16 @@ public:
             }
             _stats.clear();
 
-            // TODO: run until data is statistically significant
             for (unsigned i = 0; i < Iterations;) {
-                benchmark::detail::RunState state(bs, repeats);
+                benchmark::detail::RunState state(bs, repeats, _noopTime);
 
-                state.start();
+                /*state.start();
+                for (unsigned j = 0; j < repeats; j++) {
+                    func(state);
+                }
+                state.stop();*/
+
                 func(state);
-                state.stop();
 
                 auto sample = state.getSample();
 
@@ -142,8 +155,12 @@ public:
                     break;
                 }
 
-                if (!_run_once && firstRun && sample < std::chrono::milliseconds(1)) {
-                    repeats = (unsigned)lround(1000.0f * 1000.0f / (float)sample.count());
+                if (firstRun && sample < std::chrono::milliseconds(1)) {
+                    if (sample.count() > 0) {
+                        repeats = (unsigned)lround(1000.0 * 1000.0 * 100.0 / (double)sample.count());
+                    } else {
+                        repeats = 100000000;
+                    }
                     _stats.setRepeats(repeats);
                     firstRun = false;
                     continue;
@@ -167,12 +184,6 @@ public:
                 }
             }
         }
-    }
-
-    template <typename F>
-    void run_once(F &&func) {
-        _run_once = true;
-        run(func);
     }
 
     void debugAddSample(std::chrono::steady_clock::duration sample) {
@@ -215,10 +226,11 @@ public:
     void printResults(int *varg1 = nullptr)
     {
         if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full) {
+            printf("[Benchmark '%s'] ", _name.c_str());
             if (_stats.repeats() == 1)
-                printf("Done %u iters, total ", _totalIterations);
+                printf("done %u iters, total ", _totalIterations);
             else
-                printf("Done %u iters (%u per sample), total spent ", _totalIterations, _stats.repeats());
+                printf("done %u iters (%u per sample), total spent ", _totalIterations, _stats.repeats());
             printTime(_stats.totalTimeRun());
             printf("\n");
 
@@ -258,6 +270,11 @@ public:
 
             printf(", stddev: ");
             printTime(_stats.standardDeviation());
+
+            printf(", min: ");
+            printTime(_stats.minimalTime());
+
+            printf("\n");
         }
     }
 
@@ -269,41 +286,73 @@ public:
         return _stats.repeats();
     }
 
-    duration_t totalTimeRun() const {
+    benchmark::duration_t totalTimeRun() const {
         return _stats.totalTimeRun();
     }
 
-    duration_t averageTime() const {
+    benchmark::duration_t averageTime() const {
         return _stats.averageTime();
     }
 
-    duration_t medianTime() const {
+    benchmark::duration_t medianTime() const {
         return _stats.medianTime();
     }
 
-    duration_t minimalTime() const {
+    benchmark::duration_t minimalTime() const {
         return _stats.minimalTime();
     }
 
-    duration_t maximalTime() const {
+    benchmark::duration_t maximalTime() const {
         return _stats.maximalTime();
     }
 
-    duration_t standardDeviation() const {
+    benchmark::duration_t standardDeviation() const {
         return _stats.standardDeviation();
     }
 };
 
+class BenchmarkSilo {
+    using BenchmarkCont = std::vector<Benchmark *>;
+    static BenchmarkCont *benchmarks; // TODO: check it's in BSS
+
+public:
+    static void registerBenchmark(Benchmark *pb) {
+        if (!benchmarks) {
+            benchmarks = new BenchmarkCont();
+        }
+        benchmarks->push_back(pb);
+    }
+
+    static int runAll() {
+        for (auto benchmark : *benchmarks) {
+            benchmark->vrun();
+        }
+        return 0;
+    }
+
+    static void deleteAll() {
+        for (auto benchmark : *benchmarks) {
+            delete benchmark;
+        }
+        delete benchmarks;
+    }
+};
 
 #define BENCHMARK(Name) \
-    static struct Benchmark##Name: public Benchmark { \
-        Benchmark##Name(const char *name); \
+    struct Benchmark##Name: public Benchmark { \
+        Benchmark##Name(const char *name) : Benchmark(name) { \
+        } \
+        \
+        void vrun() override { \
+            run(&Benchmark##Name::testedFunc); \
+        } \
         static BENCHMARK_ALWAYS_INLINE void testedFunc(benchmark::detail::RunState &); \
-    } tmp##Name(#Name); \
-    \
-    Benchmark##Name::Benchmark##Name(const char *name) : Benchmark(name) { \
-        run(&Benchmark##Name::testedFunc); \
-    } \
+    }; \
+    struct RegisterBenchmark##Name { \
+        RegisterBenchmark##Name() { \
+            BenchmarkSilo::registerBenchmark(new Benchmark##Name(#Name)); \
+        } \
+    } __registerBenchmark##Name; \
     \
     void BENCHMARK_ALWAYS_INLINE Benchmark##Name::testedFunc(benchmark::detail::RunState &state)
 
@@ -311,11 +360,14 @@ public:
 #define MEASURE_STOP state.stop();
 
 #define MEASURE(code) MEASURE_START; for (unsigned j = 0; j < state.repeats(); j++){ code; } MEASURE_STOP;
-#define MEASURE_ONCE(code) MEASURE_START; { code; } MEASURE_STOP;
+//#define MEASURE_ONCE(code) MEASURE_START; { code; } MEASURE_STOP;
 
 #define REPEAT(n) for (unsigned i = 0; i < n; ++i)
 
 #define ADD_ARG_RANGE(from, to) if (state.addArgument(from, to)) return; MEASURE_START
 #define ARG1 state.arg1()
 
-#define BENCHMARK_MAIN int main(int argc, char **argv) { return 0; }
+#define RUN_BENCHMARKS BenchmarkSilo::runAll();
+#define BENCHMARK_MAIN int main(int argc, char **argv) { int ret = RUN_BENCHMARKS; BenchmarkSilo::deleteAll(); return ret; }
+
+#define BENCHMARK_STATE benchmark::detail::RunState &state

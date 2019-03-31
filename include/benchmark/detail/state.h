@@ -2,11 +2,11 @@
 #include <chrono>
 #include <vector>
 #include "config.h"
+#include <atomic> // for signal fence
+
+#include <iostream> // TODO: remove
 
 namespace benchmark {
-    using duration_t = std::chrono::steady_clock::duration;
-    using time_point_t = std::chrono::steady_clock::time_point;
-
     namespace detail {
         enum GrowthType {
             Linear,
@@ -23,7 +23,7 @@ namespace benchmark {
             int value;
         };
 
-        bool isPowerOf2(int number) {
+        inline bool isPowerOf2(int number) {
             if (number < 1)
                 return false;
             while (number > 1) {
@@ -34,7 +34,7 @@ namespace benchmark {
             return true;
         }
 
-        GrowthType findGrowthType(int from, int to) {
+        inline GrowthType findGrowthType(int from, int to) {
             if (isPowerOf2(from) && isPowerOf2(to)) {
                 return GrowthType::Exponential2;
             } else if (from % 10 == 0 && to % 10 == 0) {
@@ -135,12 +135,19 @@ namespace benchmark {
         class RunState {
             time_point_t _start{};
             time_point_t _end{duration_t::max()};
+            duration_t _duration{0};
+
+            duration_t _noopTime;
+
             bool _ended{false};
             unsigned _repeats;
             BenchmarkState &_bstate;
 
         public:
-            RunState(BenchmarkState &bstate, unsigned repeats): _repeats(repeats), _bstate(bstate)
+            RunState(BenchmarkState &bstate, unsigned repeats, duration_t noopTime):
+                _repeats(repeats),
+                _bstate(bstate),
+                _noopTime(noopTime)
             {
             }
 
@@ -150,20 +157,38 @@ namespace benchmark {
             }
 
             BENCHMARK_ALWAYS_INLINE void start() {
-                _start = std::chrono::steady_clock::now();
+                _ended = false;
+
+                //std::atomic_signal_fence(std::memory_order_acq_rel);
+                // TODO: insert memory barrier here?
+                _start = clock_t::now();
             }
 
             BENCHMARK_ALWAYS_INLINE void stop() {
-                if (!_ended) {
+                //if (!_ended) {
+                {
+                    _end = clock_t::now();
+
+                    //std::atomic_signal_fence(std::memory_order_acq_rel);
+
+                    // TODO: insert memory barrier here?
+                    auto duration = (_end - _start);
+
+                    _duration += duration;
                     _ended = true;
-                    _end = std::chrono::steady_clock::now();
                 }
             }
 
-            std::chrono::steady_clock::duration getSample() const {
-                auto sample = (_end - _start);
-                if (sample < std::chrono::nanoseconds(1))
-                    sample = std::chrono::nanoseconds(1);
+            duration_t getSample() const {
+                auto sample = _duration;
+
+                if (_noopTime < sample) {
+                    sample -= _noopTime;
+                } else {
+                    sample = std::chrono::nanoseconds(0);
+                }
+
+                //std::cout << "state sample=" << dd_.count() << " minus-noop=" << duration.count() << "\n";
                 return sample;
             }
 
