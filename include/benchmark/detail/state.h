@@ -4,8 +4,6 @@
 #include "config.h"
 #include <atomic> // for signal fence
 
-#include <iostream> // TODO: remove
-
 namespace benchmark {
     namespace detail {
         enum GrowthType {
@@ -182,10 +180,12 @@ namespace benchmark {
             duration_t getSample() const {
                 auto sample = _duration;
 
-                if (_noopTime < sample) {
-                    sample -= _noopTime;
-                } else {
-                    sample = std::chrono::nanoseconds(0);
+                if (_noopTime > std::chrono::nanoseconds(0)) {
+                    if (_noopTime < sample) {
+                        sample -= _noopTime;
+                    } else {
+                        sample = std::chrono::nanoseconds(0);
+                    }
                 }
 
                 //std::cout << "state sample=" << dd_.count() << " minus-noop=" << duration.count() << "\n";

@@ -9,26 +9,22 @@
 #include "detail/benchmark_setup.h"
 #include "detail/state.h"
 #include "detail/statistics.h"
-#include "detail/variables.h"
 #include "detail/cpu_scaling.h"
 
 /*
 Usage:
-
 {
-    Benchmark b("_name");
-    // setup env
+    Benchmark b("Name");
+    // << setup here
     b.run([&](){ ... }); // runs the lambda function many times and measures the timings
-    // teardown env
+    // << teardown here
 }
 
-BENCHMARK("Name") {
+BENCHMARK(Name) {
 	// << setup here
-	
-	auto t = benchmark.start();
-	...
-	t.stop();
-	
+	MEASURE(
+	    ...
+	)
 	// << teardown here
 }
 */
@@ -92,9 +88,6 @@ public:
                 _noopTime = d;
             }
         }
-        if (1){ //if (_setup.verbose) {
-            //printf("noopTime=%dns\n", (int)std::chrono::duration_cast<std::chrono::nanoseconds>(_noopTime).count());
-        }
     }
 
     virtual void vrun() {
@@ -108,6 +101,7 @@ public:
     // TODO: run until data is statistically significant
     // TODO: colorization
     // TODO: print (!) if stddev is too high or too low
+    // TODO: after the first try, do more tries in order to calculate repeats more precisely
     template <typename F>
     void run(F &&func)
     {
@@ -132,6 +126,7 @@ public:
         while (bs.running()) {
             bool firstRun = true;
             unsigned repeats = 1;
+            _totalIterations = 0;
 
             if (bs.variableArgsMode()) {
                 bs.pickNextArgument();
@@ -141,23 +136,17 @@ public:
             for (unsigned i = 0; i < Iterations;) {
                 benchmark::detail::RunState state(bs, repeats, _noopTime);
 
-                /*state.start();
-                for (unsigned j = 0; j < repeats; j++) {
-                    func(state);
-                }
-                state.stop();*/
-
                 func(state);
+
+                if (bs.needRestart()) // needed for ADD_ARG_RANGE functionality
+                    break;
 
                 auto sample = state.getSample();
 
-                if (bs.needRestart()) {
-                    break;
-                }
-
                 if (firstRun && sample < std::chrono::milliseconds(1)) {
+                    //printf("repeats: %d, sample.count(): %d | ", (int)repeats, (int)sample.count());
                     if (sample.count() > 0) {
-                        repeats = (unsigned)lround(1000.0 * 1000.0 * 100.0 / (double)sample.count());
+                        repeats = (unsigned)((1000.0 * 1000.0 * 100.0) / (double)sample.count());
                     } else {
                         repeats = 100000000;
                     }
@@ -166,15 +155,21 @@ public:
                     continue;
                 }
 
-                _totalIterations += _stats.repeats();
+                _totalIterations += repeats;
                 firstRun = false;
                 _stats.addSample(sample);
                 i++;
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(10)); // give other processes chance to do their job, so that the scheduler is less willing to suspend ours
+
+                printf(".");
+                fflush(stdout);
             }
 
             if (!_stats.empty()) {
-                printf("\n");
                 calculateTimings();
+
+                printf("\r");
 
                 if (bs.variableArgsMode()) {
                     int varg1 = bs.getArg();
@@ -276,6 +271,7 @@ public:
 
             printf("\n");
         }
+        fflush(stdout);
     }
 
     unsigned totalIterations() const {
@@ -359,7 +355,7 @@ public:
 #define MEASURE_START state.start();
 #define MEASURE_STOP state.stop();
 
-#define MEASURE(code) MEASURE_START; for (unsigned j = 0; j < state.repeats(); j++){ code; } MEASURE_STOP;
+#define MEASURE(code) { MEASURE_START; for (unsigned j = 0; j < state.repeats(); j++){ code; } MEASURE_STOP; }
 //#define MEASURE_ONCE(code) MEASURE_START; { code; } MEASURE_STOP;
 
 #define REPEAT(n) for (unsigned i = 0; i < n; ++i)
