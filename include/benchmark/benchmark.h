@@ -4,6 +4,7 @@
 #include <vector>
 #include <cmath>
 #include <mutex>
+#include <thread>
 #include "detail/config.h"
 #include "detail/dont_optimize.h"
 #include "detail/benchmark_setup.h"

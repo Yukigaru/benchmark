@@ -1,18 +1,20 @@
-dist: trusty
+dist: xenial
 addons:
   apt:
     packages:
       - libgtest-dev
+      - cmake
 language: cpp
-compiler: clang
 
 before_script:
+- export BUILD_DIR=$(pwd)
 - cd /usr/src/gtest
 - sudo cmake .
 - sudo make
 - sudo cp *.a /usr/lib
 
 script:
+- cd $BUILD_DIR
 - mkdir -p build
 - cd build
 - cmake ..
