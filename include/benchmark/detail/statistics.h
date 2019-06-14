@@ -134,4 +134,8 @@ public:
     duration_t standardDeviation() const {
         return _standardDeviation;
     }
+
+    bool highDeviation() const {
+        return _standardDeviation > (_averageTime / 3);
+    }
 };

@@ -14,7 +14,8 @@ add_library(benchmark STATIC
     include/benchmark/detail/program_arguments.h
     include/benchmark/detail/state.h
     include/benchmark/detail/statistics.h
-    include/benchmark/detail/variables.h)
+    include/benchmark/detail/variables.h
+    include/benchmark/detail/colorization.h)
 target_include_directories(benchmark PUBLIC include/)
 
 if(WITH_EXAMPLES)

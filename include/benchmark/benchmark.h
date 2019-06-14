@@ -10,6 +10,7 @@
 #include "detail/state.h"
 #include "detail/statistics.h"
 #include "detail/cpu_scaling.h"
+#include "detail/colorization.h"
 
 /*
 Usage:
@@ -59,7 +60,7 @@ public:
 
     ~Benchmark() {
     }
-    
+
     void warmupCpu() {
         static bool onlyOnce = false;
         if (onlyOnce)
@@ -69,7 +70,7 @@ public:
         printf("Warning: CPU power-safe mode enabled. Will try to warm up before the benchmark.\n");
 
         static const int WarmupTimeSec = 4;
-        
+
         auto start = benchmark::clock_t::now(); // do nothing serious for N seconds cycle
         while (true) {
             unsigned p = rand();
@@ -99,12 +100,8 @@ public:
     // TODO: get core load-average and print warning
     // TODO: calculate statistical significance
     // TODO: run until data is statistically significant
-    // TODO: colorization
-    // TODO: print (!) if stddev is too high or too low
-    // TODO: after the first try, do more tries in order to calculate repeats more precisely
-    template <typename F>
-    void run(F &&func)
-    {
+    template<typename F>
+    void run(F &&func) {
 #ifdef _DEBUG
 #pragma message("Warning: Benchmark library is being compiled in a Debug configuration.")
         static std::once_flag warnDebugMode;
@@ -186,13 +183,14 @@ public:
         _totalIterations++;
     }
 
-    void printTime(std::chrono::steady_clock::duration duration)
-    {
+    void printTime(std::chrono::steady_clock::duration duration, ColorTag colorTag = ColorLightGreen) {
         auto durationNs = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
         auto durationMcs = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
         auto durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
         auto durationSec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
         auto durationMin = std::chrono::duration_cast<std::chrono::minutes>(duration).count();
+
+        printf("%s", colorTag);
 
         if (durationNs < 1000) {
             printf("%llu ns", (unsigned long long)durationNs);
@@ -211,15 +209,15 @@ public:
         } else {
             printf("%.2f min", (float)durationSec / 60.0f);
         }
+
+        printf("%s", ColorReset);
     }
 
-    bool calculateTimings()
-    {
+    bool calculateTimings() {
         return _stats.calculate();
     }
 
-    void printResults(int *varg1 = nullptr)
-    {
+    void printResults(int *varg1 = nullptr) {
         if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full) {
             printf("[Benchmark '%s'] ", _name.c_str());
             if (_stats.repeats() == 1)
@@ -238,7 +236,7 @@ public:
                 printf("\n");
 
             printf("StdDev : ");
-            printTime(_stats.standardDeviation());
+            printTime(_stats.standardDeviation(), _stats.highDeviation() ? ColorRed : ColorLightGreen);
             printf("\n");
 
             printf("Median : ");
@@ -248,8 +246,8 @@ public:
             printf("Min    : ");
             printTime(_stats.minimalTime());
             printf("\n");
-        }
-        else if (_setup.outputStyle == BenchmarkSetup::OutputStyle::OneLine) {
+
+        } else if (_setup.outputStyle == BenchmarkSetup::OutputStyle::OneLine) {
             if (!varg1) {
                 // no variable arguments
                 printf("[Benchmark '%s'] %u iters, ", _name.c_str(), _totalIterations);
