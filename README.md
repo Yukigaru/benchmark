@@ -1,4 +1,5 @@
 # Overview
+[![Build Status](https://travis-ci.com/Yukigaru/benchmark.svg?branch=master)](https://travis-ci.com/Yukigaru/benchmark)
 `Benchmark` is a lightweight C++ library for reliable benchmarking your code. Features:
 - Variable arguments  
 - Auto CPU warm up
