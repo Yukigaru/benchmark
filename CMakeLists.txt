@@ -4,6 +4,9 @@ project(benchmark)
 option(WITH_EXAMPLES "Build examples" ON)
 option(WITH_TESTS "Build tests" ON)
 
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 add_library(benchmark STATIC
     src/benchmark.cpp
     include/benchmark/benchmark.h
