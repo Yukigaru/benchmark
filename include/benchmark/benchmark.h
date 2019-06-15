@@ -10,7 +10,7 @@
 #include "detail/benchmark_setup.h"
 #include "detail/state.h"
 #include "detail/statistics.h"
-#include "detail/cpu_scaling.h"
+#include "detail/cpu_info.h"
 #include "detail/colorization.h"
 
 /*
@@ -23,11 +23,11 @@ Usage:
 }
 
 BENCHMARK(Name) {
-	// << setup here
-	MEASURE(
-	    ...
-	)
-	// << teardown here
+    // << setup here
+    MEASURE(
+        ...
+    )
+    // << teardown here
 }
 */
 
@@ -57,6 +57,13 @@ public:
         // it seems that clock's now() takes longer when called first time
         auto init_timer = benchmark::clock_t::now();
         benchmark::DoNotOptimize(init_timer);
+
+        //
+        static bool onlyOnce = false;
+        if (!onlyOnce) {
+            onlyOnce = true;
+            printCPULoad();
+        }
     }
 
     ~Benchmark() {
@@ -68,7 +75,7 @@ public:
             return;
         onlyOnce = true;
 
-        printf("Warning: CPU power-safe mode enabled. Will try to warm up before the benchmark.\n");
+        printf("%sWarning: CPU power-safe mode enabled. Will try to warm up before the benchmark.%s\n", benchmark::detail::ColorLightRed, benchmark::detail::ColorReset);
 
         static const int WarmupTimeSec = 4;
 
@@ -95,12 +102,11 @@ public:
     virtual void vrun() {
     }
 
-    // TODO: think out how to do tear-up/down
-    // TODO: rework to run tests within main
     // TODO: remove deviations
-    // TODO: get core load-average and print warning
     // TODO: calculate statistical significance
     // TODO: run until data is statistically significant
+    // TODO: rewrite output to std::cout
+    // TODO: detect chrome/firefox/clion process
     template<typename F>
     void run(F &&func) {
 #ifdef _DEBUG
@@ -109,7 +115,7 @@ public:
         std::call_once(warnDebugMode, [](){ printf("Warning: Running in a Debug configuration\n"); });
 #endif
         if (!_setup.skipWarmup) {
-            if (isCPUScalingEnabled()) {
+            if (benchmark::detail::isCPUScalingEnabled()) {
                 warmupCpu();
             }
         }
@@ -184,7 +190,7 @@ public:
         _totalIterations++;
     }
 
-    void printTime(std::chrono::steady_clock::duration duration, ColorTag colorTag = ColorLightGreen) {
+    void printTime(std::chrono::steady_clock::duration duration, benchmark::detail::ColorTag colorTag = benchmark::detail::ColorLightGreen) {
         auto durationNs = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
         auto durationMcs = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
         auto durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
@@ -211,7 +217,7 @@ public:
             printf("%.2f min", (float)durationSec / 60.0f);
         }
 
-        printf("%s", ColorReset);
+        printf("%s", benchmark::detail::ColorReset);
     }
 
     bool calculateTimings() {
@@ -219,12 +225,16 @@ public:
     }
 
     void printResults(int *varg1 = nullptr) {
-        if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full) {
-            printf("[Benchmark '%s'] ", _name.c_str());
-            if (_stats.repeats() == 1)
-                printf("done %u iters, total ", _totalIterations);
-            else
-                printf("done %u iters (%u per sample), total spent ", _totalIterations, _stats.repeats());
+        if (true) {//_setup.outputStyle == BenchmarkSetup::OutputStyle::Full) {
+            printf("[Benchmark '%s'] done ", _name.c_str());
+            if (_stats.repeats() == 1) {
+                printIterations(_totalIterations, "iters");
+            } else {
+                printIterations(_totalIterations, "iters");
+                printf(" (");
+                printIterations(_stats.repeats(), "per sample)");
+            }
+            printf(", total spent ");
             printTime(_stats.totalTimeRun());
             printf("\n");
 
@@ -237,7 +247,8 @@ public:
                 printf("\n");
 
             printf("StdDev : ");
-            printTime(_stats.standardDeviation(), _stats.highDeviation() ? ColorRed : ColorLightGreen);
+            printTime(_stats.standardDeviation(), _stats.highDeviation() ? benchmark::detail::ColorRed : benchmark::detail::ColorLightGreen);
+            printf(" (%d%%)", (int)(_stats.standardDeviationLevel() * 100.0));
             printf("\n");
 
             printf("Median : ");
@@ -250,13 +261,15 @@ public:
 
         } else if (_setup.outputStyle == BenchmarkSetup::OutputStyle::OneLine) {
             if (!varg1) {
-                // no variable arguments
-                printf("[Benchmark '%s'] %u iters, ", _name.c_str(), _totalIterations);
+                // if no variable arguments
+                printf("[Benchmark '%s'] ", _name.c_str());
             } else {
-                printf("[Benchmark '%s' $1=%d] %u iters, ", _name.c_str(), *varg1, _totalIterations);
+                printf("[Benchmark '%s' $1=%d] ", _name.c_str(), *varg1);
             }
 
-            printf("avg: ");
+            printIterations(_totalIterations, "iters");
+
+            printf(", avg: ");
             printTime(_stats.averageTime());
             if (_stats.averageTime() > std::chrono::milliseconds(1))
                 printf(" (%.2f fps)",
@@ -271,6 +284,38 @@ public:
             printf("\n");
         }
         fflush(stdout);
+    }
+
+    void printIterations(size_t number, const char *suffix) {
+        if (number < 1000) {
+            printf("%d", (int)number);
+        } else if (number < 1000000) {
+            if (number % 1000 < 100) {
+                printf("%dk", (int)(number / 1000));
+            } else {
+                printf("%.1fk", (float)number / 1000.0f);
+            }
+        } else { // millions
+            printf("%.1fm", (float)number / 1000000.0f);
+        }
+        printf(" %s", suffix);
+    }
+
+    void printCPULoad() {
+        printf("CPU usage:\n");
+
+        auto cpuLoad = benchmark::detail::getCPULoad();
+
+        for (int i = 0; i < cpuLoad->loadByCore.size(); i++) {
+            float loadRel = cpuLoad->loadByCore[i];
+
+            benchmark::detail::ColorTag color = benchmark::detail::selectColorForCPULoad(loadRel);
+            printf("[Core %d: %s%d%%%s] ", i, color, (int)(loadRel * 100.0f), benchmark::detail::ColorReset);
+
+            if (i % 4 == 0 && i > 0) // split by a column
+                printf("\n");
+        }
+        printf("\n\n");
     }
 
     unsigned totalIterations() const {

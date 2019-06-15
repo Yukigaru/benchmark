@@ -136,6 +136,10 @@ public:
     }
 
     bool highDeviation() const {
-        return _standardDeviation > (_averageTime / 3);
+        return _standardDeviation > (_averageTime / 4);
+    }
+
+    double standardDeviationLevel() const {
+        return (double)_standardDeviation.count() / (double)_averageTime.count();
     }
 };

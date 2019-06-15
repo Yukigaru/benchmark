@@ -12,7 +12,7 @@ add_library(benchmark STATIC
     include/benchmark/benchmark.h
     include/benchmark/detail/benchmark_setup.h
     include/benchmark/detail/config.h
-    include/benchmark/detail/cpu_scaling.h
+    include/benchmark/detail/cpu_info.h
     include/benchmark/detail/dont_optimize.h
     include/benchmark/detail/program_arguments.h
     include/benchmark/detail/state.h
@@ -20,6 +20,8 @@ add_library(benchmark STATIC
     include/benchmark/detail/variables.h
     include/benchmark/detail/colorization.h)
 target_include_directories(benchmark PUBLIC include/)
+
+target_compile_options(benchmark PUBLIC -Wno-attributes)
 
 if(WITH_EXAMPLES)
     add_subdirectory(examples)
