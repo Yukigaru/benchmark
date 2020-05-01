@@ -186,8 +186,6 @@ namespace benchmark {
                         sample = std::chrono::nanoseconds(0);
                     }
                 }
-
-                //std::cout << "state sample=" << dd_.count() << " minus-noop=" << duration.count() << "\n";
                 return sample;
             }
 
