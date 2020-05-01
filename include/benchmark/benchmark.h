@@ -5,6 +5,8 @@
 #include <cmath>
 #include <mutex>
 #include <thread>
+#include <iostream>
+#include <iomanip>
 #include "detail/config.h"
 #include "detail/dont_optimize.h"
 #include "detail/benchmark_setup.h"
@@ -74,7 +76,10 @@ public:
             return;
         onlyOnce = true;
 
-        printf("%sWarning: CPU power-safe mode enabled. Will try to warm up before the benchmark.%s\n", benchmark::detail::ColorLightRed, benchmark::detail::ColorReset);
+        std::cout << benchmark::detail::ColorLightRed
+            << "Warning: CPU power-safe mode enabled. Will try to warm up before the benchmark."
+            << benchmark::detail::ColorReset
+            << std::endl;
 
         static const auto WarmupTime = std::chrono::seconds(4);
 
@@ -101,27 +106,26 @@ public:
     }
 
     // TODO: remove deviations
-    // TODO: calculate statistical significance
     // TODO: run until data is statistically significant
-    // TODO: rewrite output to std::cout
-    // TODO: detect chrome/firefox/clion process
+    // TODO: uplift own priority
+    // TODO: add output printer: cout, csv
     template<typename F>
     void run(F &&func) {
 #ifdef _DEBUG
 #pragma message("Warning: Benchmark library is being compiled in a Debug configuration.")
         static std::once_flag warnDebugMode;
-        std::call_once(warnDebugMode, [](){ printf("Warning: Running in a Debug configuration\n"); });
+        std::call_once(warnDebugMode, [](){ std::cout << "Warning: Running in a Debug configuration" << std::endl; });
 #endif
         if (!_setup.skipWarmup) {
             if (benchmark::detail::isCPUScalingEnabled()) {
-                warmupCpu();
+                warmupCpu(); // TODO: check if it really works
             }
         }
 
         findNoopTime();
 
         if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full)
-            printf("[Benchmark '%s'] started", _name.c_str());
+            std::cout << "[Benchmark '" << _name << "'] started" << std::endl;
 
         benchmark::detail::BenchmarkState bs;
 
@@ -186,27 +190,27 @@ public:
         auto durationSec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
         auto durationMin = std::chrono::duration_cast<std::chrono::minutes>(duration).count();
 
-        printf("%s", colorTag);
+        auto oldPrecision = std::cout.precision();
 
+        std::cout << colorTag;
         if (durationNs < 1000) {
-            printf("%llu ns", (unsigned long long)durationNs);
+            std::cout << durationNs << " ns";
         } else if (durationMcs < 10) {
-            printf("%.2f mcs", (float)durationNs / 1000.0f);
+            std::cout << std::setprecision(2) << (float)durationNs / 1000.0f << " μs";
         } else if (durationMcs < 1000) {
-            printf("%llu mcs", (unsigned long long)durationMcs);
+            std::cout << durationMcs << " μs";
         } else if (durationMs < 10) {
-            printf("%.2f ms", (float)durationMcs / 1000.0f);
+            std::cout << std::setprecision(2) << (float)durationMcs / 1000.0f << " ms";
         } else if (durationMs < 1000) {
-            printf("%llu ms", (unsigned long long)durationMs);
+            std::cout << durationMs << " ms";
         } else if (durationSec < 10) {
-            printf("%.2f sec", (float)durationMs / 1000.0f);
+            std::cout << std::setprecision(2) << (float)durationMs / 1000.0f << " sec";
         } else if (durationMin < 1) {
-            printf("%llu sec", (unsigned long long)durationSec);
+            std::cout << durationSec << " sec";
         } else {
-            printf("%.2f min", (float)durationSec / 60.0f);
+            std::cout << std::setprecision(2) << (float)durationSec / 60.0f << " min";
         }
-
-        printf("%s", benchmark::detail::ColorReset);
+        std::cout << benchmark::detail::ColorReset << std::setprecision(oldPrecision) << std::endl;
     }
 
     bool calculateTimings() {
@@ -214,80 +218,116 @@ public:
     }
 
     void printResults(int *varg1 = nullptr) {
-        if (true) {//_setup.outputStyle == BenchmarkSetup::OutputStyle::Full) {
-            printf("[Benchmark '%s'] done ", _name.c_str());
+        // TODO: return precision
+        if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full) {
+            if (!varg1) {
+                std::cout << "[Benchmark '" << _name << "'] done ";
+            } else {
+                std::cout << "[Benchmark '" << _name << "' $1=" << *varg1 << "] done ";
+            }
+
             if (_stats.repeats() == 1) {
                 printIterations(_totalIterations, "iters");
             } else {
                 printIterations(_totalIterations, "iters");
-                printf(" (");
+                std::cout << " (";
                 printIterations(_stats.repeats(), "per sample)");
             }
-            printf(", total spent ");
+            std::cout << ", total spent ";
             printTime(_stats.totalTimeRun());
-            printf("\n");
+            std::cout << "\n";
 
-            printf("Avg    : ");
+            std::cout << "Avg    : ";
             printTime(_stats.averageTime());
-            if (_stats.averageTime() > std::chrono::milliseconds(1))
-                printf(" (%.2f fps)\n",
-                       1000.0f / std::chrono::duration_cast<std::chrono::milliseconds>(_stats.averageTime()).count());
-            else
-                printf("\n");
+            if (_stats.averageTime() > std::chrono::milliseconds(1)) {
+                std::cout << " (" << std::setprecision(2)
+                    << 1000000.0f / std::chrono::duration_cast<std::chrono::microseconds>(_stats.averageTime()).count()
+                    << " fps)\n";
+            } else {
+                std::cout << "\n";
+            }
 
-            printf("StdDev : ");
+            std::cout << "StdDev : ";
             printTime(_stats.standardDeviation(), _stats.highDeviation() ? benchmark::detail::ColorRed : benchmark::detail::ColorLightGreen);
-            printf(" (%d%%)", (int)(_stats.standardDeviationLevel() * 100.0));
-            printf("\n");
+            if (_stats.standardDeviationLevel() >= 0.01f) {
+                std::cout << " (" << (int)(_stats.standardDeviationLevel() * 100.0) << "%)";
+            } else {
+                std::cout << std::setprecision(1)
+                    << " (" << (float)(_stats.standardDeviationLevel() * 100.0) << "%)";
+            }
+            std::cout <<"\n";
 
-            printf("Median : ");
+            std::cout << "Median : ";
             printTime(_stats.medianTime());
-            printf("\n");
+            std::cout << "\n";
 
-            printf("Min    : ");
+            std::cout << "90th   : ";
+            printTime(_stats.percentile(90));
+            std::cout << "\n";
+
+            std::cout << "Min    : ";
             printTime(_stats.minimalTime());
-            printf("\n");
+            std::cout << "\n";
+
+            std::cout << "Max    : ";
+            printTime(_stats.maximalTime());
+            std::cout << std::endl;
 
         } else if (_setup.outputStyle == BenchmarkSetup::OutputStyle::OneLine) {
             if (!varg1) {
-                // if no variable arguments
-                printf("[Benchmark '%s'] ", _name.c_str());
+                std::cout << "[Benchmark '" << _name << "'] ";
             } else {
-                printf("[Benchmark '%s' $1=%d] ", _name.c_str(), *varg1);
+                std::cout << "[Benchmark '" << _name << "' $1=" << *varg1 << "] ";
             }
 
-            printIterations(_totalIterations, "iters");
+            if (_stats.repeats() == 1) {
+                printIterations(_totalIterations, "iters");
+            } else {
+                printIterations(_totalIterations, "iters");
+                std::cout << " (";
+                printIterations(_stats.repeats(), "per sample)");
+            }
 
-            printf(", avg: ");
+            std::cout << ", avg: ";
             printTime(_stats.averageTime());
-            if (_stats.averageTime() > std::chrono::milliseconds(1))
-                printf(" (%.2f fps)",
-                       1000.0f / std::chrono::duration_cast<std::chrono::milliseconds>(_stats.averageTime()).count());
+            if (_stats.averageTime() > std::chrono::milliseconds(1)) {
+                std::cout << " (" << std::setprecision(2)
+                       << 1000000.0f / std::chrono::duration_cast<std::chrono::microseconds>(_stats.averageTime()).count()
+                       << " fps)";
+            }
 
-            printf(", stddev: ");
-            printTime(_stats.standardDeviation());
+            std::cout << ", 90th: ";
+            printTime(_stats.percentile(90));
 
-            printf(", min: ");
+            std::cout << ", stddev: ";
+            printTime(_stats.standardDeviation(), _stats.highDeviation() ? benchmark::detail::ColorRed : benchmark::detail::ColorLightGreen);
+            if (_stats.standardDeviationLevel() >= 0.01f) {
+                std::cout << " (" << (int)(_stats.standardDeviationLevel() * 100.0) << "%)";
+            } else {
+                std::cout << " (" << std::setprecision(1) << (float)(_stats.standardDeviationLevel() * 100.0) << "%)";
+            }
+
+            std::cout << ", min: ";
             printTime(_stats.minimalTime());
 
-            printf("\n");
+            std::cout << std::endl;
         }
-        fflush(stdout);
     }
 
     void printIterations(size_t number, const char *suffix) {
+    // TODO: restore precision
         if (number < 1000) {
-            printf("%d", (int)number);
+            std::cout << number;
         } else if (number < 1000000) {
             if (number % 1000 < 100) {
-                printf("%dk", (int)(number / 1000));
+                std::cout << number / 1000 << "k";
             } else {
-                printf("%.1fk", (float)number / 1000.0f);
+                std::cout << std::setprecision(1) << (float)number / 1000.0f << "k";
             }
         } else { // millions
-            printf("%.1fm", (float)number / 1000000.0f);
+            std::cout << std::setprecision(1) << (float)number / 1000000.0f << "m";
         }
-        printf(" %s", suffix);
+        std::cout << " " << suffix;
     }
 
     void printCPULoad() {
@@ -317,9 +357,9 @@ public:
             std::cout << "[Freq " << i << ": " << color << (int)(freqRel * 100.0f) << "%" << benchmark::detail::ColorReset << "] ";
 
             if (i % 4 == 0 && i > 0) // split by a column
-                printf("\n");
+                std::cout << "\n";
         }
-        printf("\n\n");
+        std::cout << "\n\n";
     }
 
     unsigned totalIterations() const {

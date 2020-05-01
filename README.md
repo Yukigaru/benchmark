@@ -14,18 +14,18 @@ Platforms: Linux. Not tested on Windows.
 
 #### Example
 ```
-#include <benchmark.h>
+#include <benchmark/benchmark.h>
 
 BENCHMARK("My vector") {
     std::vector<int> v;
     v.reserve(N);
     
-    MEASURE {
+    MEASURE(
         REPEAT(64) { v.push_back(i); }
-    }
+    )
 }
 
-BENCHMARK_MAIN()
+BENCHMARK_MAIN
 ```
 
 # Notes

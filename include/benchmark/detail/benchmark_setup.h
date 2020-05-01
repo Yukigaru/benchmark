@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include "config.h"
 #include "program_arguments.h"
 
@@ -22,17 +23,17 @@ struct BenchmarkSetup {
     {
         ProgramArguments args(argc, argv);
 
-        std::string outputStyle = args.after("output");
-        if (outputStyle == "full") {
+        std::string outputStyle_ = args.after("output");
+        if (outputStyle_ == "full") {
             outputStyle = OutputStyle::Full;
-        } else if (outputStyle == "oneline") {
+        } else if (outputStyle_ == "oneline") {
             outputStyle = OutputStyle::OneLine;
-        } else if (outputStyle == "table") {
+        } else if (outputStyle_ == "table") {
             outputStyle = OutputStyle::Table;
-        } else if (outputStyle == "nothing") {
+        } else if (outputStyle_ == "nothing") {
             outputStyle = OutputStyle::Nothing;
         } else {
-            fprintf(stderr, "Unexpected value of 'output' argument: %s\n", outputStyle.c_str());
+            std::cerr << "Unexpected value of 'output' argument: ", outputStyle_ << std::endl;
         }
 
         verbose = args.contains("verbose");
