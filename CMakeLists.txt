@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.2)
 project(benchmark)
 
+if (POLICY CMP0077)
+    cmake_policy(SET CMP0077 NEW)
+endif()
+
 option(WITH_EXAMPLES "Build examples" ON)
 option(WITH_TESTS "Build tests" ON)
 
