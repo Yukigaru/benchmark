@@ -26,5 +26,14 @@ namespace benchmark {
             }
             return ColorLightGreen;
         }
+
+        static ColorTag selectColorForCPUFreq(float relValue) { // value is in [0.0, 1.0] range
+            if (relValue < 0.6f) {
+                return ColorLightRed;
+            } else if (relValue < 0.8f) {
+                return ColorLightYellow;
+            }
+            return ColorLightGreen;
+        }
     }
 }

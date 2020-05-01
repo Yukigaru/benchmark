@@ -52,13 +52,12 @@ public:
         : _name(name_)
         , _setup(setup_)
         , _totalIterations(0)
-        , Iterations(10)
+        , Iterations(200)
     {
-        // it seems that clock's now() takes longer when called first time
+        // clock's now() takes longer when called first time
         auto init_timer = benchmark::clock_t::now();
         benchmark::DoNotOptimize(init_timer);
 
-        //
         static bool onlyOnce = false;
         if (!onlyOnce) {
             onlyOnce = true;
@@ -71,20 +70,19 @@ public:
 
     void warmupCpu() {
         static bool onlyOnce = false;
-        if (onlyOnce)
+        if (onlyOnce) // not supposed to be thread-safe, that's fine
             return;
         onlyOnce = true;
 
         printf("%sWarning: CPU power-safe mode enabled. Will try to warm up before the benchmark.%s\n", benchmark::detail::ColorLightRed, benchmark::detail::ColorReset);
 
-        static const int WarmupTimeSec = 4;
+        static const auto WarmupTime = std::chrono::seconds(4);
 
         auto start = benchmark::clock_t::now(); // do nothing serious for N seconds cycle
         while (true) {
             unsigned p = rand();
             benchmark::DoNotOptimize(p);
-            auto end = benchmark::clock_t::now();
-            if (end - start > std::chrono::seconds(WarmupTimeSec))
+            if (benchmark::clock_t::now() - start > WarmupTime)
                 break;
         }
     }
@@ -131,6 +129,7 @@ public:
             bool firstRun = true;
             unsigned repeats = 1;
             _totalIterations = 0;
+            auto startTime = std::chrono::steady_clock::now();
 
             if (bs.variableArgsMode()) {
                 bs.pickNextArgument();
@@ -145,19 +144,7 @@ public:
                 if (bs.needRestart()) // needed for ADD_ARG_RANGE functionality
                     break;
 
-                auto sample = state.getSample();
-
-                if (firstRun && sample < std::chrono::milliseconds(1)) {
-                    //printf("repeats: %d, sample.count(): %d | ", (int)repeats, (int)sample.count());
-                    if (sample.count() > 0) {
-                        repeats = (unsigned)((1000.0 * 1000.0 * 100.0) / (double)sample.count());
-                    } else {
-                        repeats = 100000000;
-                    }
-                    _stats.setRepeats(repeats);
-                    firstRun = false;
-                    continue;
-                }
+                benchmark::duration_t sample = state.getSample();
 
                 _totalIterations += repeats;
                 firstRun = false;
@@ -166,14 +153,16 @@ public:
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(10)); // give other processes chance to do their job, so that the scheduler is less willing to suspend ours
 
-                printf(".");
-                fflush(stdout);
+                if (std::chrono::steady_clock::now() - startTime > std::chrono::seconds(2))
+                    break;
+
+                std::cout << (i % 5 ? "" : ".") << std::endl;
             }
 
             if (!_stats.empty()) {
                 calculateTimings();
 
-                printf("\r");
+                std::cout << "\r" << std::endl;
 
                 if (bs.variableArgsMode()) {
                     int varg1 = bs.getArg();
@@ -415,7 +404,7 @@ public:
 #define MEASURE_STOP state.stop();
 
 #define MEASURE(code) { MEASURE_START; for (unsigned j = 0; j < state.repeats(); j++){ code; } MEASURE_STOP; }
-//#define MEASURE_ONCE(code) MEASURE_START; { code; } MEASURE_STOP;
+#define MEASURE_ONCE(code) { MEASURE_START; { code; } MEASURE_STOP; repeats = 1; }
 
 #define REPEAT(n) for (unsigned i = 0; i < n; ++i)
 

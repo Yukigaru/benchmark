@@ -39,18 +39,12 @@ public:
 
     void clear() {
         _samples.clear();
+        _repeats = 1;
     }
 
     bool calculate() {
         if (_samples.empty())
             return false;
-
-        if (1) {
-            for (size_t i = 0; i < _samples.size(); i++) {
-                auto sample = _samples[i];
-                //std::cout << "sample tot: " << sample.count() << "ns, one: " << sample.count() / _repeats << "ns\n";
-            }
-        }
 
         _totalTimeRun = std::chrono::steady_clock::duration(0);
         _averageTime = std::chrono::steady_clock::duration(0);
