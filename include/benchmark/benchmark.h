@@ -302,15 +302,30 @@ public:
     }
 
     void printCPULoad() {
-        printf("CPU usage:\n");
+        std::cout << "CPU usage:\n";
 
         auto cpuLoad = benchmark::detail::getCPULoad();
 
-        for (int i = 0; i < cpuLoad->loadByCore.size(); i++) {
+        for (int i = 0; i < cpuLoad->numCores; i++) {
             float loadRel = cpuLoad->loadByCore[i];
 
             benchmark::detail::ColorTag color = benchmark::detail::selectColorForCPULoad(loadRel);
-            printf("[Core %d: %s%d%%%s] ", i, color, (int)(loadRel * 100.0f), benchmark::detail::ColorReset);
+            std::cout << "[Core " << i << ": " << color << (int)(loadRel * 100.0f) << "%" << benchmark::detail::ColorReset << "] ";
+
+            if (i % 4 == 0 && i > 0) // split by a column
+                std::cout << "\n";
+        }
+        std::cout << "\n";
+        for (int i = 0; i < cpuLoad->numCores; i++) {
+            int curFreq = cpuLoad->freqByCore[i].curFreq;
+            int maxFreq = cpuLoad->freqByCore[i].maxFreq;
+
+            float freqRel = 0.0f;
+            if (curFreq > 0 && maxFreq > 0)
+                freqRel = (float)curFreq / (float)maxFreq;
+
+            benchmark::detail::ColorTag color = benchmark::detail::selectColorForCPUFreq(freqRel);
+            std::cout << "[Freq " << i << ": " << color << (int)(freqRel * 100.0f) << "%" << benchmark::detail::ColorReset << "] ";
 
             if (i % 4 == 0 && i > 0) // split by a column
                 printf("\n");

@@ -179,7 +179,6 @@ namespace benchmark {
 
             duration_t getSample() const {
                 auto sample = _duration;
-
                 if (_noopTime > std::chrono::nanoseconds(0)) {
                     if (_noopTime < sample) {
                         sample -= _noopTime;

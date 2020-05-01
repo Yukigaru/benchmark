@@ -13,6 +13,11 @@
 namespace benchmark {
 namespace detail {
 
+struct CoreFrequency {
+    int curFreq;
+    int maxFreq;
+};
+
 static int getCPUCoresNum() {
     int cpuCores = 0;
 
@@ -45,6 +50,27 @@ static int getCPUCoresNum() {
 #endif
 }
 
+static std::string getFileText(const std::string &filePath) {
+    static const int BufSize = 256;
+    char buf[BufSize];
+
+    FILE *fh = std::fopen(filePath.c_str(), "r");
+    if (!fh) {
+        std::cerr << "Couldn't open '" << filePath << "'\n";
+        return "";
+    }
+
+    char *fresult = std::fgets(buf, BufSize, fh);
+    if (!fresult) {
+        std::fclose(fh);
+        std::cerr << "Couldn't read from '" << filePath << "'\n";
+        return "";
+    }
+    std::fclose(fh);
+
+    return std::string(buf);
+}
+
 static bool isCPUScalingEnabled() {
 #ifdef WIN32
     return false;
@@ -56,24 +82,9 @@ static bool isCPUScalingEnabled() {
         governorPath += std::to_string(i);
         governorPath += "/cpufreq/scaling_governor";
 
-        static const int BufSize = 256;
-        char buf[BufSize];
-
-        FILE *fh = std::fopen(governorPath.c_str(), "r");
-        if (!fh) {
-            fprintf(stderr, "Couldn't open '%s'\n", governorPath.c_str());
-            return false;
-        }
-        char *fresult = std::fgets(buf, BufSize, fh);
-        if (!fresult) {
-            std::fclose(fh);
-            fprintf(stderr, "Couldn't read from '%s'\n", governorPath.c_str());
-            return false;
-        }
-        std::fclose(fh);
-
-        if (std::strcmp(buf, "performance\n") != 0 &&
-            std::strcmp(buf, "performance") != 0) {
+        std::string governorText = getFileText(governorPath);
+        if (governorText != "performance\n" &&
+            governorText != "performance") {
             return true;
         }
     }
@@ -82,14 +93,27 @@ static bool isCPUScalingEnabled() {
 #endif
 }
 
-static int currentCPUCore() {
-#ifndef WIN32
-    return sched_getcpu();
+static std::vector<CoreFrequency> readCPUFreqs() {
+#ifdef WIN32
+    return std::vector<CoreFrequency>();
 #else
-    return -1;
+    int coresNum = getCPUCoresNum();
+    std::vector<CoreFrequency> result;
+
+    for (int i = 0; i < coresNum; i++) {
+        std::string cpuPath = "/sys/devices/system/cpu/cpu";
+        cpuPath += std::to_string(i);
+        cpuPath += "/cpufreq/";
+
+        std::string curFreqText = getFileText(cpuPath + "scaling_cur_freq");
+        std::string maxFreqText = getFileText(cpuPath + "cpuinfo_max_freq");
+
+        result.push_back({std::atoi(curFreqText.c_str()), std::atoi(maxFreqText.c_str())});
+    }
+
+    return result;
 #endif
 }
-
 
 enum CPUStates
 {
@@ -103,7 +127,6 @@ enum CPUStates
     StateSteal,
     StateGuest,
     StateGuestNice,
-
     NumStates
 };
 
@@ -146,7 +169,7 @@ static std::unique_ptr<CPUStats> readCPUStats()
             result->statsByCore.push_back({});
             CPUCoreStats &coreStats = result->statsByCore.back();
 
-            for (int i = 0; i < NumStates; ++i)
+            for (size_t i = 0; i < NumStates; ++i)
                 ss >> coreStats.timeSample[i];
         }
     }
@@ -155,24 +178,32 @@ static std::unique_ptr<CPUStats> readCPUStats()
 }
 
 struct CPULoadResult {
+    int numCores;
     std::vector<float> loadByCore;
+    std::vector<CoreFrequency> freqByCore;
 };
 
 static std::unique_ptr<CPULoadResult> getCPULoad() {
     int cores = getCPUCoresNum();
 
     std::unique_ptr<CPUStats> s1 = readCPUStats();
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
     std::unique_ptr<CPUStats> s2 = readCPUStats();
 
+    std::vector<CoreFrequency> freqs = readCPUFreqs();
+
     std::unique_ptr<CPULoadResult> result{ new CPULoadResult{} };
+    result->numCores = cores;
 
     for (int i = 0; i < cores; i++) {
         size_t loadTimeD = s2->statsByCore[i].loadTime() - s1->statsByCore[i].loadTime();
         size_t idleTimeD = s2->statsByCore[i].idleTime() - s1->statsByCore[i].idleTime();
         size_t totalTimeD = loadTimeD + idleTimeD;
-
         result->loadByCore.push_back((float)loadTimeD / (float)totalTimeD);
+
+        int curFreq = freqs.empty() ? 0 : freqs[i].curFreq;
+        int maxFreq = freqs.empty() ? 0 : freqs[i].maxFreq;
+        result->freqByCore.push_back({curFreq, maxFreq});
     }
 
     return result;
