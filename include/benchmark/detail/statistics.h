@@ -131,6 +131,13 @@ public:
         return _maximalTime;
     }
 
+    duration_t percentile(int nth) const {
+        size_t idx = (size_t)(_samples.size() * ((float)nth / 100.0f)) - 1;
+        if (idx < 0)
+            idx = 0;
+        return _samples[idx] / _repeats;
+    }
+
     duration_t standardDeviation() const {
         return _standardDeviation;
     }
