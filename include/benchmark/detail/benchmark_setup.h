@@ -33,7 +33,7 @@ struct BenchmarkSetup {
         } else if (outputStyle_ == "nothing") {
             outputStyle = OutputStyle::Nothing;
         } else {
-            std::cerr << "Unexpected value of 'output' argument: ", outputStyle_ << std::endl;
+            std::cerr << "Unexpected value of 'output' argument: " << outputStyle_ << std::endl;
         }
 
         verbose = args.contains("verbose");
