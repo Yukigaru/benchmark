@@ -1,59 +1,28 @@
 #pragma once
 #include <vector>
+#include "chrono_utils.h"
 
 class TimeStatistics {
-public:
-    using duration_t = std::chrono::steady_clock::duration;
-
 private:
-    std::vector<duration_t> _samples;
+    std::vector<benchmark::duration_t> _samples;
     bool _significant;
 
-    duration_t _totalTimeRun;
-    duration_t _averageTime;
-    duration_t _medianTime;
-    duration_t _minimalTime;
-    duration_t _maximalTime;
-    duration_t _standardDeviation;
+    benchmark::duration_t _totalTimeRun;
+    benchmark::duration_t _averageTime;
+    benchmark::duration_t _medianTime;
+    benchmark::duration_t _minimalTime;
+    benchmark::duration_t _maximalTime;
+    benchmark::duration_t _standardDeviation;
     unsigned _repeats;
 
-public:
-    TimeStatistics():
-        _totalTimeRun(0)
-        , _averageTime(0)
-        , _medianTime(0)
-        , _minimalTime(0)
-        , _maximalTime(0)
-        , _standardDeviation(0)
-        , _repeats(1) {
-        _samples.reserve(512);
-    }
-
-    void setRepeats(unsigned repeats) {
-        _repeats = repeats;
-    }
-
-    void addSample(duration_t sample) {
-        _samples.push_back(sample);
-    }
-
-    void clear() {
-        _samples.clear();
-        _repeats = 1;
-    }
-
-    bool calculate() {
-        if (_samples.empty())
-            return false;
-
+private:
+    void calculateStats() {
         _totalTimeRun = std::chrono::steady_clock::duration(0);
         _averageTime = std::chrono::steady_clock::duration(0);
         _maximalTime = _minimalTime = _samples[0];
 
         // minimum and average
-        for (size_t i = 0; i < _samples.size(); i++) {
-            auto sample = _samples[i];
-
+        for (auto sample : _samples) {
             _averageTime += sample;
             _totalTimeRun += sample;
 
@@ -71,8 +40,8 @@ public:
         auto averageNs = std::chrono::duration_cast<std::chrono::nanoseconds>(_averageTime).count();
         unsigned long long sumOfSquares = 0;
 
-        for (size_t i = 0; i < _samples.size(); i++) {
-            auto sampleNs = _samples[i].count() / _repeats;
+        for (auto sample : _samples) {
+            auto sampleNs = sample.count() / _repeats;
 
             auto d = (sampleNs > averageNs) ? (sampleNs - averageNs) : (averageNs - sampleNs);
             sumOfSquares += d * d;
@@ -83,8 +52,63 @@ public:
 
         // median
         std::sort(_samples.begin(), _samples.end());
-
         _medianTime = _samples[_samples.size() / 2] / _repeats;
+    }
+
+    bool removeOutliers() {
+        bool removed = false;
+        auto outlierThreshold = _averageTime + _standardDeviation * 2.0f;
+        int j = 0;
+        for (size_t i = 0; i < _samples.size();) {
+            auto sample = _samples[i];
+            if (sample > outlierThreshold) {
+                _samples[i] = _samples.back();
+                _samples.pop_back();
+                removed = true;
+                j++;
+            } else {
+                i++;
+            }
+        }
+        std::cout << "removed " << j << " outliers\n";
+        return removed;
+    }
+
+public:
+    TimeStatistics():
+        _totalTimeRun(0)
+        , _averageTime(0)
+        , _medianTime(0)
+        , _minimalTime(0)
+        , _maximalTime(0)
+        , _standardDeviation(0)
+        , _repeats(1) {
+        _samples.reserve(512);
+    }
+
+    /*void setRepeats(unsigned repeats) {
+        _repeats = repeats;
+    }*/
+
+    void addSample(benchmark::duration_t sample) {
+        _samples.push_back(sample);
+    }
+
+    void clear() {
+        _samples.clear();
+        _repeats = 1;
+    }
+
+    bool calculate() {
+        if (_samples.empty())
+            return false;
+
+        calculateStats();
+        //std::cout << "avg " << j << " outliers\n";
+
+        if (removeOutliers()) {
+            calculateStats();
+        }
 
         return true;
     }
@@ -105,34 +129,34 @@ public:
         return _repeats;
     }
     
-    duration_t totalTimeRun() const {
+    benchmark::duration_t totalTimeRun() const {
         return _totalTimeRun;
     }
 
-    duration_t averageTime() const {
+    benchmark::duration_t averageTime() const {
         return _averageTime;
     }
 
-    duration_t medianTime() const {
+    benchmark::duration_t medianTime() const {
         return _medianTime;
     }
 
-    duration_t minimalTime() const {
+    benchmark::duration_t minimalTime() const {
         return _minimalTime;
     }
 
-    duration_t maximalTime() const {
+    benchmark::duration_t maximalTime() const {
         return _maximalTime;
     }
 
-    duration_t percentile(int nth) const {
+    benchmark::duration_t percentile(int nth) const {
         size_t idx = (size_t)(_samples.size() * ((float)nth / 100.0f)) - 1;
         if (idx < 0)
             idx = 0;
         return _samples[idx] / _repeats;
     }
 
-    duration_t standardDeviation() const {
+    benchmark::duration_t standardDeviation() const {
         return _standardDeviation;
     }
 

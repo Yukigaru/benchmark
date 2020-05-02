@@ -1,4 +1,3 @@
-#include <mutex>
 #include <benchmark/benchmark.h>
 
 BenchmarkSilo::BenchmarkCont *BenchmarkSilo::benchmarks;

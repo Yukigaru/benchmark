@@ -1,4 +1,5 @@
 #pragma once
+
 #include <algorithm>
 #include <chrono>
 #include <vector>
@@ -14,6 +15,7 @@
 #include "detail/statistics.h"
 #include "detail/cpu_info.h"
 #include "detail/colorization.h"
+#include "detail/chrono_utils.h"
 
 /*
 Usage:
@@ -46,16 +48,11 @@ class Benchmark {
 
 public:
     Benchmark(const char *name_ = "")
-        : Benchmark(BenchmarkSetup(), name_)
-    {
+            : Benchmark(BenchmarkSetup(), name_) {
     }
-    
+
     Benchmark(const BenchmarkSetup &setup_, const char *name_ = "")
-        : _name(name_)
-        , _setup(setup_)
-        , _totalIterations(0)
-        , Iterations(200)
-    {
+            : _name(name_), _setup(setup_), _totalIterations(0), Iterations(200) {
         // clock's now() takes longer when called first time
         auto init_timer = benchmark::clock_t::now();
         benchmark::DoNotOptimize(init_timer);
@@ -77,9 +74,9 @@ public:
         onlyOnce = true;
 
         std::cout << benchmark::detail::ColorLightRed
-            << "Warning: CPU power-safe mode enabled. Will try to warm up before the benchmark."
-            << benchmark::detail::ColorReset
-            << std::endl;
+                  << "Warning: CPU power-safe mode enabled. Will try to warm up before the benchmark."
+                  << benchmark::detail::ColorReset
+                  << std::endl;
 
         static const auto WarmupTime = std::chrono::seconds(4);
 
@@ -108,7 +105,16 @@ public:
     // TODO: remove deviations
     // TODO: run until data is statistically significant
     // TODO: uplift own priority
+    // TODO: add output styles classes
     // TODO: add output printer: cout, csv
+    // TODO: make statistics template generic
+    // TODO: set core affinity
+
+    // TODO: fix median
+
+    // TODO: recommend disabling turbo boost? detect turbo boost?
+    // TODO: recommend disabling hyper-threadgin
+    // TODO: recommend disabling address space randomization?
     template<typename F>
     void run(F &&func) {
 #ifdef _DEBUG
@@ -155,18 +161,21 @@ public:
                 _stats.addSample(sample);
                 i++;
 
-                std::this_thread::sleep_for(std::chrono::milliseconds(10)); // give other processes chance to do their job, so that the scheduler is less willing to suspend ours
+                // give other processes chance to do their job, so that the scheduler is less willing to suspend ours
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
                 if (std::chrono::steady_clock::now() - startTime > std::chrono::seconds(2))
                     break;
 
-                std::cout << (i % 5 ? "" : ".") << std::endl;
+                std::cout << (i % 5 ? "" : ".");
+                std::cout.flush();
             }
 
             if (!_stats.empty()) {
                 calculateTimings();
 
-                std::cout << "\r" << std::endl;
+                std::cout << "\r";
+                std::cout.flush();
 
                 if (bs.variableArgsMode()) {
                     int varg1 = bs.getArg();
@@ -183,42 +192,13 @@ public:
         _totalIterations++;
     }
 
-    void printTime(std::chrono::steady_clock::duration duration, benchmark::detail::ColorTag colorTag = benchmark::detail::ColorLightGreen) {
-        auto durationNs = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
-        auto durationMcs = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
-        auto durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
-        auto durationSec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
-        auto durationMin = std::chrono::duration_cast<std::chrono::minutes>(duration).count();
-
-        auto oldPrecision = std::cout.precision();
-
-        std::cout << colorTag;
-        if (durationNs < 1000) {
-            std::cout << durationNs << " ns";
-        } else if (durationMcs < 10) {
-            std::cout << std::setprecision(2) << (float)durationNs / 1000.0f << " μs";
-        } else if (durationMcs < 1000) {
-            std::cout << durationMcs << " μs";
-        } else if (durationMs < 10) {
-            std::cout << std::setprecision(2) << (float)durationMcs / 1000.0f << " ms";
-        } else if (durationMs < 1000) {
-            std::cout << durationMs << " ms";
-        } else if (durationSec < 10) {
-            std::cout << std::setprecision(2) << (float)durationMs / 1000.0f << " sec";
-        } else if (durationMin < 1) {
-            std::cout << durationSec << " sec";
-        } else {
-            std::cout << std::setprecision(2) << (float)durationSec / 60.0f << " min";
-        }
-        std::cout << benchmark::detail::ColorReset << std::setprecision(oldPrecision) << std::endl;
-    }
-
     bool calculateTimings() {
         return _stats.calculate();
     }
 
-    void printResults(int *varg1 = nullptr) {
-        // TODO: return precision
+    void printResults(const int *varg1 = nullptr) {
+        auto oldPrecision = std::cout.precision();
+
         if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full) {
             if (!varg1) {
                 std::cout << "[Benchmark '" << _name << "'] done ";
@@ -227,51 +207,40 @@ public:
             }
 
             if (_stats.repeats() == 1) {
-                printIterations(_totalIterations, "iters");
+                std::cout << benchmark::io::Iterations{_totalIterations} << " iters";
             } else {
-                printIterations(_totalIterations, "iters");
-                std::cout << " (";
-                printIterations(_stats.repeats(), "per sample)");
+                std::cout << benchmark::io::Iterations{_totalIterations} << " iters"
+                          << " (" <<
+                          benchmark::io::Iterations{_stats.repeats()} << "per sample)";
             }
-            std::cout << ", total spent ";
-            printTime(_stats.totalTimeRun());
-            std::cout << "\n";
+            std::cout << ", total spent " << _stats.totalTimeRun() << "\n";
 
-            std::cout << "Avg    : ";
-            printTime(_stats.averageTime());
+            std::cout << "Avg    : " << _stats.averageTime();
             if (_stats.averageTime() > std::chrono::milliseconds(1)) {
                 std::cout << " (" << std::setprecision(2)
-                    << 1000000.0f / std::chrono::duration_cast<std::chrono::microseconds>(_stats.averageTime()).count()
-                    << " fps)\n";
+                          << 1000000.0f /
+                             std::chrono::duration_cast<std::chrono::microseconds>(_stats.averageTime()).count()
+                          << " fps)\n";
             } else {
                 std::cout << "\n";
             }
 
-            std::cout << "StdDev : ";
-            printTime(_stats.standardDeviation(), _stats.highDeviation() ? benchmark::detail::ColorRed : benchmark::detail::ColorLightGreen);
+            std::cout << "StdDev : " << benchmark::io::ColoredDuration{_stats.standardDeviation(),
+                                                                       _stats.highDeviation()
+                                                                       ? benchmark::detail::ColorRed
+                                                                       : benchmark::detail::ColorLightGreen};
+
             if (_stats.standardDeviationLevel() >= 0.01f) {
-                std::cout << " (" << (int)(_stats.standardDeviationLevel() * 100.0) << "%)";
+                std::cout << " (" << (int) (_stats.standardDeviationLevel() * 100.0) << "%)";
             } else {
                 std::cout << std::setprecision(1)
-                    << " (" << (float)(_stats.standardDeviationLevel() * 100.0) << "%)";
+                          << " (" << (float) (_stats.standardDeviationLevel() * 100.0) << "%)";
             }
-            std::cout <<"\n";
-
-            std::cout << "Median : ";
-            printTime(_stats.medianTime());
             std::cout << "\n";
-
-            std::cout << "90th   : ";
-            printTime(_stats.percentile(90));
-            std::cout << "\n";
-
-            std::cout << "Min    : ";
-            printTime(_stats.minimalTime());
-            std::cout << "\n";
-
-            std::cout << "Max    : ";
-            printTime(_stats.maximalTime());
-            std::cout << std::endl;
+            std::cout << "Median : " << _stats.medianTime() << "\n";
+            std::cout << "90th   : " << _stats.percentile(90) << "\n";
+            std::cout << "Min    : " << _stats.minimalTime() << "\n";
+            std::cout << "Max    : " << _stats.maximalTime() << std::endl;
 
         } else if (_setup.outputStyle == BenchmarkSetup::OutputStyle::OneLine) {
             if (!varg1) {
@@ -281,53 +250,36 @@ public:
             }
 
             if (_stats.repeats() == 1) {
-                printIterations(_totalIterations, "iters");
+                std::cout << benchmark::io::Iterations{_totalIterations} << " iters";
             } else {
-                printIterations(_totalIterations, "iters");
-                std::cout << " (";
-                printIterations(_stats.repeats(), "per sample)");
+                std::cout << benchmark::io::Iterations{_totalIterations} << " iters"
+                          << " (" <<
+                          benchmark::io::Iterations{_stats.repeats()} << "per sample)";
             }
 
-            std::cout << ", avg: ";
-            printTime(_stats.averageTime());
+            std::cout << ", avg: " << _stats.averageTime();
             if (_stats.averageTime() > std::chrono::milliseconds(1)) {
                 std::cout << " (" << std::setprecision(2)
-                       << 1000000.0f / std::chrono::duration_cast<std::chrono::microseconds>(_stats.averageTime()).count()
-                       << " fps)";
+                          << (1000000.0f /
+                              std::chrono::duration_cast<std::chrono::microseconds>(_stats.averageTime()).count())
+                          << " fps)";
             }
 
-            std::cout << ", 90th: ";
-            printTime(_stats.percentile(90));
+            std::cout << ", 90th: " << _stats.percentile(90);
 
-            std::cout << ", stddev: ";
-            printTime(_stats.standardDeviation(), _stats.highDeviation() ? benchmark::detail::ColorRed : benchmark::detail::ColorLightGreen);
+            std::cout << ", stddev: " << benchmark::io::ColoredDuration{_stats.standardDeviation(),
+                                                                        _stats.highDeviation()
+                                                                        ? benchmark::detail::ColorRed
+                                                                        : benchmark::detail::ColorLightGreen};
             if (_stats.standardDeviationLevel() >= 0.01f) {
-                std::cout << " (" << (int)(_stats.standardDeviationLevel() * 100.0) << "%)";
+                std::cout << " (" << (int) (_stats.standardDeviationLevel() * 100.0) << "%)";
             } else {
-                std::cout << " (" << std::setprecision(1) << (float)(_stats.standardDeviationLevel() * 100.0) << "%)";
+                std::cout << " (" << std::setprecision(1) << (float) (_stats.standardDeviationLevel() * 100.0) << "%)";
             }
 
-            std::cout << ", min: ";
-            printTime(_stats.minimalTime());
-
-            std::cout << std::endl;
+            std::cout << ", min: " << _stats.minimalTime() << std::endl;
         }
-    }
-
-    void printIterations(size_t number, const char *suffix) {
-    // TODO: restore precision
-        if (number < 1000) {
-            std::cout << number;
-        } else if (number < 1000000) {
-            if (number % 1000 < 100) {
-                std::cout << number / 1000 << "k";
-            } else {
-                std::cout << std::setprecision(1) << (float)number / 1000.0f << "k";
-            }
-        } else { // millions
-            std::cout << std::setprecision(1) << (float)number / 1000000.0f << "m";
-        }
-        std::cout << " " << suffix;
+        std::cout << std::setprecision(oldPrecision);
     }
 
     void printCPULoad() {
@@ -339,7 +291,8 @@ public:
             float loadRel = cpuLoad->loadByCore[i];
 
             benchmark::detail::ColorTag color = benchmark::detail::selectColorForCPULoad(loadRel);
-            std::cout << "[Core " << i << ": " << color << (int)(loadRel * 100.0f) << "%" << benchmark::detail::ColorReset << "] ";
+            std::cout << "[Core " << i << ": " << color << (int) (loadRel * 100.0f) << "%"
+                      << benchmark::detail::ColorReset << "] ";
 
             if (i % 4 == 0 && i > 0) // split by a column
                 std::cout << "\n";
@@ -351,10 +304,11 @@ public:
 
             float freqRel = 0.0f;
             if (curFreq > 0 && maxFreq > 0)
-                freqRel = (float)curFreq / (float)maxFreq;
+                freqRel = (float) curFreq / (float) maxFreq;
 
             benchmark::detail::ColorTag color = benchmark::detail::selectColorForCPUFreq(freqRel);
-            std::cout << "[Freq " << i << ": " << color << (int)(freqRel * 100.0f) << "%" << benchmark::detail::ColorReset << "] ";
+            std::cout << "[Freq " << i << ": " << color << (int) (freqRel * 100.0f) << "%"
+                      << benchmark::detail::ColorReset << "] ";
 
             if (i % 4 == 0 && i > 0) // split by a column
                 std::cout << "\n";
@@ -397,7 +351,7 @@ public:
 
 class BenchmarkSilo {
     using BenchmarkCont = std::vector<Benchmark *>;
-    static BenchmarkCont *benchmarks; // TODO: check it's in BSS
+    static BenchmarkCont *benchmarks;
 
 public:
     static void registerBenchmark(Benchmark *pb) {
