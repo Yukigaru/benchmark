@@ -137,7 +137,6 @@ public:
 
         while (bs.running()) {
             bool firstRun = true;
-            unsigned repeats = 1;
             _totalIterations = 0;
             auto startTime = std::chrono::steady_clock::now();
 
@@ -147,7 +146,7 @@ public:
             _stats.clear();
 
             for (unsigned i = 0; i < Iterations;) {
-                benchmark::detail::RunState state(bs, repeats, _noopTime);
+                benchmark::detail::RunState state(bs, _noopTime);
 
                 func(state);
 
@@ -156,7 +155,7 @@ public:
 
                 benchmark::duration_t sample = state.getSample();
 
-                _totalIterations += repeats;
+                _totalIterations++;
                 firstRun = false;
                 _stats.addSample(sample);
                 i++;
@@ -206,13 +205,7 @@ public:
                 std::cout << "[Benchmark '" << _name << "' $1=" << *varg1 << "] done ";
             }
 
-            if (_stats.repeats() == 1) {
-                std::cout << benchmark::io::Iterations{_totalIterations} << " iters";
-            } else {
-                std::cout << benchmark::io::Iterations{_totalIterations} << " iters"
-                          << " (" <<
-                          benchmark::io::Iterations{_stats.repeats()} << "per sample)";
-            }
+            std::cout << benchmark::io::Iterations{_totalIterations} << " iters";
             std::cout << ", total spent " << _stats.totalTimeRun() << "\n";
 
             std::cout << "Avg    : " << _stats.averageTime();
@@ -249,13 +242,7 @@ public:
                 std::cout << "[Benchmark '" << _name << "' $1=" << *varg1 << "] ";
             }
 
-            if (_stats.repeats() == 1) {
-                std::cout << benchmark::io::Iterations{_totalIterations} << " iters";
-            } else {
-                std::cout << benchmark::io::Iterations{_totalIterations} << " iters"
-                          << " (" <<
-                          benchmark::io::Iterations{_stats.repeats()} << "per sample)";
-            }
+            std::cout << benchmark::io::Iterations{_totalIterations} << " iters";
 
             std::cout << ", avg: " << _stats.averageTime();
             if (_stats.averageTime() > std::chrono::milliseconds(1)) {
@@ -318,10 +305,6 @@ public:
 
     unsigned totalIterations() const {
         return _totalIterations;
-    }
-
-    unsigned repeats() const {
-        return _stats.repeats();
     }
 
     benchmark::duration_t totalTimeRun() const {
@@ -397,8 +380,7 @@ public:
 #define MEASURE_START state.start();
 #define MEASURE_STOP state.stop();
 
-#define MEASURE(code) { MEASURE_START; for (unsigned j = 0; j < state.repeats(); j++){ code; } MEASURE_STOP; }
-#define MEASURE_ONCE(code) { MEASURE_START; { code; } MEASURE_STOP; repeats = 1; }
+#define MEASURE(code) { MEASURE_START; { code; } MEASURE_STOP; }
 
 #define REPEAT(n) for (unsigned i = 0; i < n; ++i)
 
