@@ -48,7 +48,15 @@ private:
 
         // median
         std::sort(_samples.begin(), _samples.end());
-        _medianTime = _samples[_samples.size() / 2];
+        if (_samples.size() % 2 == 1) {
+            _medianTime = _samples[_samples.size() / 2];
+        } else {
+            auto j = _samples.size() / 2;
+            auto ns = std::chrono::nanoseconds::rep(
+                    (double)std::chrono::duration_cast<std::chrono::nanoseconds>(_samples[j-1]).count() / 2.0 +
+                    (double)std::chrono::duration_cast<std::chrono::nanoseconds>(_samples[j]).count() / 2.0);
+            _medianTime = std::chrono::nanoseconds(ns);
+        }
     }
 
     bool removeOutliers() {
@@ -78,7 +86,7 @@ public:
         , _minimalTime(0)
         , _maximalTime(0)
         , _standardDeviation(0) {
-        _samples.reserve(512);
+        _samples.reserve(256);
     }
 
     void addSample(benchmark::duration_t sample) {

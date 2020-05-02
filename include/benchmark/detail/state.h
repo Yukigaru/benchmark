@@ -138,12 +138,10 @@ namespace benchmark {
             duration_t _noopTime;
 
             bool _ended{false};
-            unsigned _repeats;
             BenchmarkState &_bstate;
 
         public:
-            RunState(BenchmarkState &bstate, unsigned repeats, duration_t noopTime):
-                _repeats(repeats),
+            RunState(BenchmarkState &bstate, duration_t noopTime):
                 _bstate(bstate),
                 _noopTime(noopTime)
             {
@@ -187,10 +185,6 @@ namespace benchmark {
                     }
                 }
                 return sample;
-            }
-
-            BENCHMARK_ALWAYS_INLINE unsigned repeats() const {
-                return _repeats;
             }
 
             BENCHMARK_ALWAYS_INLINE int arg1() const {
