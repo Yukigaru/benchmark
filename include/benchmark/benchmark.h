@@ -102,16 +102,12 @@ public:
     virtual void vrun() {
     }
 
-    // TODO: remove deviations
     // TODO: run until data is statistically significant
     // TODO: uplift own priority
     // TODO: add output styles classes
     // TODO: add output printer: cout, csv
     // TODO: make statistics template generic
     // TODO: set core affinity
-
-    // TODO: fix median
-
     // TODO: recommend disabling turbo boost? detect turbo boost?
     // TODO: recommend disabling hyper-threadgin
     // TODO: recommend disabling address space randomization?
@@ -307,28 +303,8 @@ public:
         return _totalIterations;
     }
 
-    benchmark::duration_t totalTimeRun() const {
-        return _stats.totalTimeRun();
-    }
-
-    benchmark::duration_t averageTime() const {
-        return _stats.averageTime();
-    }
-
-    benchmark::duration_t medianTime() const {
-        return _stats.medianTime();
-    }
-
-    benchmark::duration_t minimalTime() const {
-        return _stats.minimalTime();
-    }
-
-    benchmark::duration_t maximalTime() const {
-        return _stats.maximalTime();
-    }
-
-    benchmark::duration_t standardDeviation() const {
-        return _stats.standardDeviation();
+    const TimeStatistics & statistics() const {
+        return _stats;
     }
 };
 
