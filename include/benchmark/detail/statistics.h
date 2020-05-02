@@ -13,7 +13,6 @@ private:
     benchmark::duration_t _minimalTime;
     benchmark::duration_t _maximalTime;
     benchmark::duration_t _standardDeviation;
-    unsigned _repeats;
 
 private:
     void calculateStats() {
@@ -32,17 +31,14 @@ private:
                 _maximalTime = sample;
         }
 
-        _minimalTime /= _repeats;
-        _maximalTime /= _repeats;
-        _averageTime /= (_samples.size() * _repeats);
+        _averageTime /= _samples.size();
 
         // standard deviation
         auto averageNs = std::chrono::duration_cast<std::chrono::nanoseconds>(_averageTime).count();
         unsigned long long sumOfSquares = 0;
 
         for (auto sample : _samples) {
-            auto sampleNs = sample.count() / _repeats;
-
+            auto sampleNs = sample.count();
             auto d = (sampleNs > averageNs) ? (sampleNs - averageNs) : (averageNs - sampleNs);
             sumOfSquares += d * d;
         }
@@ -52,25 +48,25 @@ private:
 
         // median
         std::sort(_samples.begin(), _samples.end());
-        _medianTime = _samples[_samples.size() / 2] / _repeats;
+        _medianTime = _samples[_samples.size() / 2];
     }
 
     bool removeOutliers() {
+        if (_samples.size() < 3)
+            return false;
+
         bool removed = false;
         auto outlierThreshold = _averageTime + _standardDeviation * 2.0f;
-        int j = 0;
         for (size_t i = 0; i < _samples.size();) {
             auto sample = _samples[i];
             if (sample > outlierThreshold) {
                 _samples[i] = _samples.back();
                 _samples.pop_back();
                 removed = true;
-                j++;
             } else {
                 i++;
             }
         }
-        std::cout << "removed " << j << " outliers\n";
         return removed;
     }
 
@@ -81,14 +77,9 @@ public:
         , _medianTime(0)
         , _minimalTime(0)
         , _maximalTime(0)
-        , _standardDeviation(0)
-        , _repeats(1) {
+        , _standardDeviation(0) {
         _samples.reserve(512);
     }
-
-    /*void setRepeats(unsigned repeats) {
-        _repeats = repeats;
-    }*/
 
     void addSample(benchmark::duration_t sample) {
         _samples.push_back(sample);
@@ -96,7 +87,6 @@ public:
 
     void clear() {
         _samples.clear();
-        _repeats = 1;
     }
 
     bool calculate() {
@@ -104,12 +94,9 @@ public:
             return false;
 
         calculateStats();
-        //std::cout << "avg " << j << " outliers\n";
-
         if (removeOutliers()) {
             calculateStats();
         }
-
         return true;
     }
     
@@ -125,10 +112,6 @@ public:
         return _samples.empty();
     }
 
-    unsigned repeats() const {
-        return _repeats;
-    }
-    
     benchmark::duration_t totalTimeRun() const {
         return _totalTimeRun;
     }
@@ -153,7 +136,7 @@ public:
         size_t idx = (size_t)(_samples.size() * ((float)nth / 100.0f)) - 1;
         if (idx < 0)
             idx = 0;
-        return _samples[idx] / _repeats;
+        return _samples[idx];
     }
 
     benchmark::duration_t standardDeviation() const {
