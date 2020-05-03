@@ -2,6 +2,7 @@
 #include <chrono>
 #include <iosfwd>
 #include "colorization.h"
+#include "cpu_info.h"
 
 namespace benchmark {
 using duration_t = std::chrono::steady_clock::duration;
@@ -74,5 +75,35 @@ inline std::ostream& operator <<(std::ostream &os, benchmark::io::Iterations v) 
         os << std::setprecision(1) << (float) v.iterations / 1000000.0f << "m";
     }
     os << std::setprecision(oldPrecision);
+    return os;
+}
+
+inline std::ostream& operator <<(std::ostream &os, std::unique_ptr<benchmark::detail::CPULoadResult> &cpuLoad) {
+    for (int i = 0; i < cpuLoad->numCores; i++) {
+        float loadRel = cpuLoad->loadByCore[i];
+
+        benchmark::detail::ColorTag color = benchmark::detail::selectColorForCPULoad(loadRel);
+        os << "[Core " << i << ": " << color << (int) (loadRel * 100.0f) << "%"
+                  << benchmark::detail::ColorReset << "] ";
+
+        if (i % 4 == 0 && i > 0) // split by a column
+            os << "\n";
+    }
+    os << "\n";
+    for (int i = 0; i < cpuLoad->numCores; i++) {
+        int curFreq = cpuLoad->freqByCore[i].curFreq;
+        int maxFreq = cpuLoad->freqByCore[i].maxFreq;
+
+        float freqRel = 0.0f;
+        if (curFreq > 0 && maxFreq > 0)
+            freqRel = (float) curFreq / (float) maxFreq;
+
+        benchmark::detail::ColorTag color = benchmark::detail::selectColorForCPUFreq(freqRel);
+        os << "[Freq " << i << ": " << color << (int) (freqRel * 100.0f) << "%"
+                  << benchmark::detail::ColorReset << "] ";
+
+        if (i % 4 == 0 && i > 0) // split by a column
+            os << "\n";
+    }
     return os;
 }
