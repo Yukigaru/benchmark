@@ -5,38 +5,33 @@
 class TimeStatistics {
 private:
     std::vector<benchmark::duration_t> _samples;
-    bool _significant;
-
-    benchmark::duration_t _totalTimeRun;
-    benchmark::duration_t _averageTime;
-    benchmark::duration_t _medianTime;
-    benchmark::duration_t _minimalTime;
-    benchmark::duration_t _maximalTime;
-    benchmark::duration_t _standardDeviation;
+    benchmark::duration_t _totalSum;
+    benchmark::duration_t _average;
+    benchmark::duration_t _median;
+    benchmark::duration_t _minimum;
+    benchmark::duration_t _maximum;
+    benchmark::duration_t _stdDev;
 
 private:
     void calculateStats() {
-        _totalTimeRun = std::chrono::steady_clock::duration(0);
-        _averageTime = std::chrono::steady_clock::duration(0);
-        _maximalTime = _minimalTime = _samples[0];
+        _totalSum = benchmark::duration_t(0);
+        _average = benchmark::duration_t(0);
+        _maximum = _minimum = _samples[0];
 
         // minimum and average
         for (auto sample : _samples) {
-            _averageTime += sample;
-            _totalTimeRun += sample;
-
-            if (sample < _minimalTime)
-                _minimalTime = sample;
-            if (sample > _maximalTime)
-                _maximalTime = sample;
+            _average += sample;
+            _totalSum += sample;
+            if (sample < _minimum)
+                _minimum = sample;
+            if (sample > _maximum)
+                _maximum = sample;
         }
-
-        _averageTime /= _samples.size();
+        _average /= _samples.size();
 
         // standard deviation
-        auto averageNs = std::chrono::duration_cast<std::chrono::nanoseconds>(_averageTime).count();
+        auto averageNs = std::chrono::duration_cast<std::chrono::nanoseconds>(_average).count();
         unsigned long long sumOfSquares = 0;
-
         for (auto sample : _samples) {
             auto sampleNs = sample.count();
             auto d = (sampleNs > averageNs) ? (sampleNs - averageNs) : (averageNs - sampleNs);
@@ -44,18 +39,15 @@ private:
         }
         sumOfSquares /= _samples.size();
         long long stdDevNs = llround(sqrt((double)sumOfSquares));
-        _standardDeviation = std::chrono::nanoseconds(stdDevNs);
+        _stdDev = std::chrono::nanoseconds(stdDevNs);
 
         // median
         std::sort(_samples.begin(), _samples.end());
         if (_samples.size() % 2 == 1) {
-            _medianTime = _samples[_samples.size() / 2];
+            _median = _samples[_samples.size() / 2];
         } else {
             auto j = _samples.size() / 2;
-            auto ns = std::chrono::nanoseconds::rep(
-                    (double)std::chrono::duration_cast<std::chrono::nanoseconds>(_samples[j-1]).count() / 2.0 +
-                    (double)std::chrono::duration_cast<std::chrono::nanoseconds>(_samples[j]).count() / 2.0);
-            _medianTime = std::chrono::nanoseconds(ns);
+            _median = _samples[j-1] / 2 + _samples[j] / 2;
         }
     }
 
@@ -64,7 +56,7 @@ private:
             return false;
 
         bool removed = false;
-        auto outlierThreshold = _averageTime + _standardDeviation * 2.0f;
+        auto outlierThreshold = _average + _stdDev * 2.0f;
         for (size_t i = 0; i < _samples.size();) {
             auto sample = _samples[i];
             if (sample > outlierThreshold) {
@@ -80,12 +72,12 @@ private:
 
 public:
     TimeStatistics():
-        _totalTimeRun(0)
-        , _averageTime(0)
-        , _medianTime(0)
-        , _minimalTime(0)
-        , _maximalTime(0)
-        , _standardDeviation(0) {
+        _totalSum(0)
+        , _average(0)
+        , _median(0)
+        , _minimum(0)
+        , _maximum(0)
+        , _stdDev(0) {
         _samples.reserve(256);
     }
 
@@ -108,10 +100,6 @@ public:
         return true;
     }
     
-    bool significant() const {
-        return _significant;
-    }
-    
     size_t size() const {
         return _samples.size();
     }
@@ -121,23 +109,23 @@ public:
     }
 
     benchmark::duration_t totalTimeRun() const {
-        return _totalTimeRun;
+        return _totalSum;
     }
 
     benchmark::duration_t averageTime() const {
-        return _averageTime;
+        return _average;
     }
 
     benchmark::duration_t medianTime() const {
-        return _medianTime;
+        return _median;
     }
 
     benchmark::duration_t minimalTime() const {
-        return _minimalTime;
+        return _minimum;
     }
 
     benchmark::duration_t maximalTime() const {
-        return _maximalTime;
+        return _maximum;
     }
 
     benchmark::duration_t percentile(int nth) const {
@@ -148,14 +136,14 @@ public:
     }
 
     benchmark::duration_t standardDeviation() const {
-        return _standardDeviation;
+        return _stdDev;
     }
 
     bool highDeviation() const {
-        return _standardDeviation > (_averageTime / 4);
+        return _stdDev > (_average / 4);
     }
 
     double standardDeviationLevel() const {
-        return (double)_standardDeviation.count() / (double)_averageTime.count();
+        return (double)_stdDev.count() / (double)_average.count();
     }
 };
