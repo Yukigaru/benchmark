@@ -17,6 +17,8 @@
 #include "detail/colorization.h"
 #include "detail/chrono_utils.h"
 
+#include <sys/resource.h>
+
 /*
 Usage:
 {
@@ -102,14 +104,13 @@ public:
     virtual void vrun() {
     }
 
-    // TODO: run until data is statistically significant
     // TODO: uplift own priority
+    // TODO: set core affinity
+    // TODO: run until data is statistically significant
     // TODO: add output styles classes
     // TODO: add output printer: cout, csv
-    // TODO: make statistics template generic
-    // TODO: set core affinity
     // TODO: recommend disabling turbo boost? detect turbo boost?
-    // TODO: recommend disabling hyper-threadgin
+    // TODO: recommend disabling hyper-threading
     // TODO: recommend disabling address space randomization?
     template<typename F>
     void run(F &&func) {
@@ -122,6 +123,13 @@ public:
             if (benchmark::detail::isCPUScalingEnabled()) {
                 warmupCpu(); // TODO: check if it really works
             }
+        }
+
+        int ret = setpriority(PRIO_PROCESS, 0, -20);
+        if (ret != -1) {
+            std::cout << "Current priority: " << getpriority(PRIO_PROCESS, 0) << std::endl;
+        } else {
+            std::cout << "Failed to set priority (code " << errno << ")" << std::endl;
         }
 
         findNoopTime();
