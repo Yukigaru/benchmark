@@ -13,18 +13,18 @@ TEST(Benchmark, Durations)
         Benchmark b(bs);
         b.run([=](benchmark::detail::RunState &) { std::this_thread::sleep_for(std::chrono::milliseconds(timeMs)); });
         ASSERT_NEAR((double)std::chrono::milliseconds(timeMs).count(),
-                    (double)std::chrono::duration_cast<std::chrono::milliseconds>(b.averageTime()).count(), 10.0);
+                    (double)std::chrono::duration_cast<std::chrono::milliseconds>(b.statistics().averageTime()).count(), 10.0);
         ASSERT_NEAR((double)std::chrono::milliseconds(timeMs).count(),
-                    (double)std::chrono::duration_cast<std::chrono::milliseconds>(b.medianTime()).count(), 10.0);
-        ASSERT_GT(b.averageTime(), std::chrono::steady_clock::duration(0));
-        ASSERT_GT(b.minimalTime(), std::chrono::steady_clock::duration(0));
-        ASSERT_GT(b.medianTime(), std::chrono::steady_clock::duration(0));
-        ASSERT_LE(b.standardDeviation(), b.averageTime());
-        ASSERT_GE(b.averageTime(), b.minimalTime());
-        ASSERT_GE(b.medianTime(), b.minimalTime());
-        ASSERT_LE(b.averageTime(), b.maximalTime());
-        ASSERT_LE(b.medianTime(), b.maximalTime());
-        ASSERT_LE(b.minimalTime(), b.maximalTime());
+                    (double)std::chrono::duration_cast<std::chrono::milliseconds>(b.statistics().medianTime()).count(), 10.0);
+        ASSERT_GT(b.statistics().averageTime(), std::chrono::steady_clock::duration(0));
+        ASSERT_GT(b.statistics().minimalTime(), std::chrono::steady_clock::duration(0));
+        ASSERT_GT(b.statistics().medianTime(), std::chrono::steady_clock::duration(0));
+        ASSERT_LE(b.statistics().standardDeviation(), b.statistics().averageTime());
+        ASSERT_GE(b.statistics().averageTime(), b.statistics().minimalTime());
+        ASSERT_GE(b.statistics().medianTime(), b.statistics().minimalTime());
+        ASSERT_LE(b.statistics().averageTime(), b.statistics().maximalTime());
+        ASSERT_LE(b.statistics().medianTime(), b.statistics().maximalTime());
+        ASSERT_LE(b.statistics().minimalTime(), b.statistics().maximalTime());
         ASSERT_GT(b.totalIterations(), 0u);
     }
 }
@@ -39,12 +39,12 @@ TEST(Main, CustomSamples)
     b.debugAddSample(std::chrono::milliseconds(4));
     b.calculateTimings();
 
-    ASSERT_EQ(b.minimalTime(), std::chrono::milliseconds(1));
-    ASSERT_EQ(b.maximalTime(), std::chrono::milliseconds(4));
-    ASSERT_EQ(b.averageTime(), std::chrono::microseconds(2500));
-    ASSERT_EQ(b.medianTime(), std::chrono::milliseconds(3));
+    ASSERT_EQ(b.statistics().minimalTime(), std::chrono::milliseconds(1));
+    ASSERT_EQ(b.statistics().maximalTime(), std::chrono::milliseconds(4));
+    ASSERT_EQ(b.statistics().averageTime(), std::chrono::microseconds(2500));
+    ASSERT_EQ(b.statistics().medianTime(), std::chrono::milliseconds(3));
     ASSERT_EQ(b.totalIterations(), 4);
-    ASSERT_EQ(b.totalTimeRun(), std::chrono::milliseconds(10));
+    ASSERT_EQ(b.statistics().totalTimeRun(), std::chrono::milliseconds(10));
 }
 
 TEST(Main, StdDeviation)
@@ -55,9 +55,7 @@ TEST(Main, StdDeviation)
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     });
     
-    std::cout << "Test stddev: ";
-    b.printTime(b.standardDeviation());
-    std::cout << std::endl;
+    std::cout << "Test stddev: " << b.statistics().standardDeviation() << std::endl;
 }
 
 TEST(Main, DoNothing)
@@ -68,12 +66,11 @@ TEST(Main, DoNothing)
         // do nothing
     });
 
-    ASSERT_LE(b.averageTime(), std::chrono::nanoseconds(1));
-    ASSERT_LE(b.medianTime(), std::chrono::nanoseconds(1));
-    ASSERT_LE(b.minimalTime(), std::chrono::nanoseconds(1));
-    ASSERT_LE(b.maximalTime(), std::chrono::nanoseconds(1));
+    ASSERT_LE(b.statistics().averageTime(), std::chrono::nanoseconds(1));
+    ASSERT_LE(b.statistics().medianTime(), std::chrono::nanoseconds(1));
+    ASSERT_LE(b.statistics().minimalTime(), std::chrono::nanoseconds(1));
+    ASSERT_LE(b.statistics().maximalTime(), std::chrono::nanoseconds(1));
     ASSERT_GT(b.totalIterations(), 1);
-    ASSERT_GT(b.repeats(), 1);
 }
 
 int main(int argc, char **argv)
