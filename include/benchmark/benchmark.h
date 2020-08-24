@@ -104,14 +104,6 @@ public:
     virtual void vrun() {
     }
 
-    // TODO: uplift own priority
-    // TODO: set core affinity
-    // TODO: run until data is statistically significant
-    // TODO: add output styles classes
-    // TODO: add output printer: cout, csv
-    // TODO: recommend disabling turbo boost? detect turbo boost?
-    // TODO: recommend disabling hyper-threading
-    // TODO: recommend disabling address space randomization?
     template<typename F>
     void run(F &&func) {
 #ifdef _DEBUG
@@ -152,7 +144,9 @@ public:
             for (unsigned i = 0; i < Iterations;) {
                 benchmark::detail::RunState state(bs, _noopTime);
 
+                state.start();
                 func(state);
+                state.stop();
 
                 if (bs.needRestart()) // needed for ADD_ARG_RANGE functionality
                     break;
