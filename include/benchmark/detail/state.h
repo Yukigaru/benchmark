@@ -161,8 +161,7 @@ namespace benchmark {
             }
 
             BENCHMARK_ALWAYS_INLINE void stop() {
-                //if (!_ended) {
-                {
+                if (!_ended) {
                     _end = clock_t::now();
 
                     //std::atomic_signal_fence(std::memory_order_acq_rel);
