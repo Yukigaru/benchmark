@@ -118,10 +118,8 @@ public:
         }
 
         int ret = setpriority(PRIO_PROCESS, 0, -20);
-        if (ret != -1) {
-            std::cout << "Current priority: " << getpriority(PRIO_PROCESS, 0) << std::endl;
-        } else {
-            std::cout << "Failed to set priority (code " << errno << ")" << std::endl;
+        if (ret == -1) {
+            std::cout << "Couldn't to set priority (code " << errno << "), try to run with administrator privileges" << std::endl;
         }
 
         findNoopTime();
@@ -195,6 +193,7 @@ public:
 
     void printResults(const int *varg1 = nullptr) {
         auto oldPrecision = std::cout.precision();
+        std::cout << std::fixed; // disable scientific notation
 
         if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full) {
             if (!varg1) {
@@ -208,7 +207,7 @@ public:
 
             std::cout << "Avg    : " << _stats.averageTime();
             if (_stats.averageTime() > std::chrono::milliseconds(1)) {
-                std::cout << " (" << std::setprecision(2)
+                std::cout << " (" << std::setprecision(3)
                           << 1000000.0f /
                              std::chrono::duration_cast<std::chrono::microseconds>(_stats.averageTime()).count()
                           << " fps)\n";
@@ -244,7 +243,7 @@ public:
 
             std::cout << ", avg: " << _stats.averageTime();
             if (_stats.averageTime() > std::chrono::milliseconds(1)) {
-                std::cout << " (" << std::setprecision(2)
+                std::cout << " (" << std::setprecision(3)
                           << (1000000.0f /
                               std::chrono::duration_cast<std::chrono::microseconds>(_stats.averageTime()).count())
                           << " fps)";
@@ -255,7 +254,7 @@ public:
             std::cout << ", stddev: " << benchmark::io::ColoredDuration{_stats.standardDeviation(),
                                                                         _stats.highDeviation()
                                                                         ? benchmark::detail::ColorRed
-                                                                        : benchmark::detail::ColorLightGreen};
+                                                                        : benchmark::detail::ColorReset};
             if (_stats.standardDeviationLevel() >= 0.01f) {
                 std::cout << " (" << (int) (_stats.standardDeviationLevel() * 100.0) << "%)";
             } else {
