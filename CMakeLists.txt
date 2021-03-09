@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(benchmark)
+project(benchmark LANGUAGES CXX)
 
 if (POLICY CMP0077)
     cmake_policy(SET CMP0077 NEW)
