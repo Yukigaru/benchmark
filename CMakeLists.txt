@@ -25,8 +25,6 @@ add_library(benchmark STATIC
     include/benchmark/detail/colorization.h)
 target_include_directories(benchmark PUBLIC include/)
 
-target_compile_options(benchmark PUBLIC -Wno-attributes)
-
 if(WITH_EXAMPLES)
     add_subdirectory(examples)
 endif()
