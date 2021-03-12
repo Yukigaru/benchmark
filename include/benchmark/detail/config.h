@@ -17,7 +17,7 @@
 #endif
 
 namespace benchmark {
-    using clock_t = std::chrono::high_resolution_clock;
+    using clock_t = std::chrono::steady_clock;
     using duration_t = clock_t::duration;
     using time_point_t = clock_t::time_point;
 }
