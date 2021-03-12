@@ -1,5 +1,7 @@
 #pragma once
+#include <algorithm>
 #include <chrono>
+#include <utility>
 #include <vector>
 #include "config.h"
 
@@ -31,10 +33,18 @@ namespace benchmark {
             return true;
         }
 
+        inline bool isPowerOf10(int number) {
+            if (number < 1)
+                return false;
+            while (number > 1 && number % 10 == 0)
+                number /= 10;
+            return number == 1;
+        }
+
         inline GrowthType findGrowthType(int from, int to) {
             if (isPowerOf2(from) && isPowerOf2(to)) {
                 return GrowthType::Exponential2;
-            } else if (from % 10 == 0 && to % 10 == 0) {
+            } else if (isPowerOf10(from) && isPowerOf10(to)) {
                 return GrowthType::Exponential10;
             }
             return GrowthType::Linear;
@@ -80,6 +90,11 @@ namespace benchmark {
 
                 _currentArg1 = varg.value;
 
+                if (varg.value == varg.range.second) {
+                    _variablesDone = true;
+                    return;
+                }
+
                 switch (varg.growth) {
                     case Linear: {
                         varg.value += varg.growing ? 1 : -1;
@@ -105,6 +120,10 @@ namespace benchmark {
 
                 if ((varg.growing && varg.value > varg.range.second) ||
                     (!varg.growing && varg.value < varg.range.second)) {
+                    varg.value = varg.range.second;
+                }
+
+                if (varg.value == _currentArg1) {
                     _variablesDone = true;
                 }
             }
