@@ -21,7 +21,7 @@ struct BenchmarkSetup {
     BenchmarkSetup(int argc, const char **argv):
         BenchmarkSetup()
     {
-        ProgramArguments args(argc, argv);
+        benchmark::detail::ProgramArguments args(argc, argv);
 
         std::string outputStyle_ = args.after("output");
         if (outputStyle_ == "full") {
