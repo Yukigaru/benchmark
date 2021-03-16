@@ -1,6 +1,9 @@
 #pragma once
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
 #include <vector>
-#include "chrono_utils.h"
+#include "config.h"
 
 namespace benchmark {
 
