@@ -72,7 +72,7 @@ private:
             _median = _samples[_samples.size() / 2];
         } else {
             auto j = _samples.size() / 2;
-            _median = _samples[j-1] / 2 + _samples[j] / 2;
+            _median = _samples[j - 1] + (_samples[j] - _samples[j - 1]) / 2;
         }
     }
 

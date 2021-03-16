@@ -53,6 +53,16 @@ TEST(TimeStatistics, SaturatesOverflowingTotals)
     EXPECT_EQ(benchmark::duration_t::max(), mixed.totalTimeRun());
 }
 
+TEST(TimeStatistics, CalculatesMedianWithoutLosingOddTicks)
+{
+    benchmark::TimeStatistics statistics;
+    statistics.addSample(benchmark::duration_t(1));
+    statistics.addSample(benchmark::duration_t(3));
+    ASSERT_TRUE(statistics.calculate());
+    EXPECT_EQ(benchmark::duration_t(2), statistics.medianTime());
+}
+
+
 TEST(BenchmarkState, GeneratesCompleteLinearRanges)
 {
     const auto zeroToTen = arguments(0, 10);
