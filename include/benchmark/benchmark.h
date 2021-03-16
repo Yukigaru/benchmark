@@ -41,7 +41,7 @@ class Benchmark {
     std::string _name;
     BenchmarkSetup _setup;
 
-    TimeStatistics _stats;
+    benchmark::TimeStatistics _stats;
     unsigned _totalIterations;
 
     unsigned Iterations;
@@ -277,7 +277,7 @@ public:
         return _totalIterations;
     }
 
-    const TimeStatistics & statistics() const {
+    const benchmark::TimeStatistics & statistics() const {
         return _stats;
     }
 };

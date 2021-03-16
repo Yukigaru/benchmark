@@ -2,6 +2,8 @@
 #include <vector>
 #include "chrono_utils.h"
 
+namespace benchmark {
+
 class TimeStatistics {
 private:
     std::vector<benchmark::duration_t> _samples;
@@ -147,3 +149,5 @@ public:
         return (double)_stdDev.count() / (double)_average.count();
     }
 };
+
+} // namespace benchmark
