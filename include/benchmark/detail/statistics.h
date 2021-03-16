@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <vector>
 #include "config.h"
 
@@ -19,14 +20,25 @@ private:
 
 private:
     void calculateStats() {
+        using rep = benchmark::duration_t::rep;
+
         _totalSum = benchmark::duration_t(0);
         _average = benchmark::duration_t(0);
         _maximum = _minimum = _samples[0];
 
+        long double mean = 0.0L;
+        long double sumOfSquares = 0.0L;
+        size_t count = 0;
         // minimum and average
         for (auto sample : _samples) {
             _average += sample;
             _totalSum += sample;
+
+            const rep valueTicks = sample.count();
+            const long double value = static_cast<long double>(valueTicks);
+            const long double delta = value - mean;
+            mean += delta / static_cast<long double>(++count);
+            sumOfSquares += delta * (value - mean);
             if (sample < _minimum)
                 _minimum = sample;
             if (sample > _maximum)
@@ -34,17 +46,12 @@ private:
         }
         _average /= _samples.size();
 
-        // standard deviation
-        auto averageNs = std::chrono::duration_cast<std::chrono::nanoseconds>(_average).count();
-        unsigned long long sumOfSquares = 0;
-        for (auto sample : _samples) {
-            auto sampleNs = sample.count();
-            auto d = (sampleNs > averageNs) ? (sampleNs - averageNs) : (averageNs - sampleNs);
-            sumOfSquares += d * d;
-        }
-        sumOfSquares /= _samples.size();
-        long long stdDevNs = llround(sqrt((double)sumOfSquares));
-        _stdDev = std::chrono::nanoseconds(stdDevNs);
+        const long double maxDuration = static_cast<long double>(std::numeric_limits<rep>::max());
+        const long double stdDev = std::sqrt(sumOfSquares / static_cast<long double>(count));
+        const auto stdDevTicks = stdDev >= maxDuration
+            ? std::numeric_limits<rep>::max()
+            : static_cast<rep>(stdDev + 0.5L);
+        _stdDev = benchmark::duration_t(stdDevTicks);
 
         // median
         std::sort(_samples.begin(), _samples.end());

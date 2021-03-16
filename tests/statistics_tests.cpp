@@ -1,4 +1,5 @@
 #include <benchmark/detail/state.h>
+#include <benchmark/detail/statistics.h>
 #include <gtest/gtest.h>
 
 #include <climits>
@@ -18,6 +19,19 @@ std::vector<int> arguments(int from, int to)
         result.push_back(state.getArg());
     }
     return result;
+}
+
+TEST(TimeStatistics, CalculatesLargeStandardDeviationWithoutOverflow)
+{
+    benchmark::TimeStatistics statistics;
+    statistics.addSample(benchmark::duration_t(0));
+    statistics.addSample(benchmark::duration_t::max());
+    ASSERT_TRUE(statistics.calculate());
+
+    const auto expected = benchmark::duration_t::max().count() / 2;
+    const auto actual = statistics.standardDeviation().count();
+    const auto difference = actual > expected ? actual - expected : expected - actual;
+    EXPECT_LE(difference, 1);
 }
 
 TEST(BenchmarkState, GeneratesCompleteLinearRanges)
