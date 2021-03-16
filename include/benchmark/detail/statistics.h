@@ -23,30 +23,43 @@ private:
         using rep = benchmark::duration_t::rep;
 
         _totalSum = benchmark::duration_t(0);
-        _average = benchmark::duration_t(0);
         _maximum = _minimum = _samples[0];
 
+        long double total = 0.0L;
         long double mean = 0.0L;
         long double sumOfSquares = 0.0L;
         size_t count = 0;
-        // minimum and average
         for (auto sample : _samples) {
-            _average += sample;
-            _totalSum += sample;
-
             const rep valueTicks = sample.count();
-            const long double value = static_cast<long double>(valueTicks);
-            const long double delta = value - mean;
-            mean += delta / static_cast<long double>(++count);
-            sumOfSquares += delta * (value - mean);
+            total += static_cast<long double>(valueTicks);
+
             if (sample < _minimum)
                 _minimum = sample;
             if (sample > _maximum)
                 _maximum = sample;
-        }
-        _average /= _samples.size();
 
+            const long double value = static_cast<long double>(valueTicks);
+            const long double delta = value - mean;
+            mean += delta / static_cast<long double>(++count);
+            sumOfSquares += delta * (value - mean);
+        }
+
+        const long double minDuration = static_cast<long double>(std::numeric_limits<rep>::min());
         const long double maxDuration = static_cast<long double>(std::numeric_limits<rep>::max());
+        const rep totalTicks = total <= minDuration
+            ? std::numeric_limits<rep>::min()
+            : total >= maxDuration
+                ? std::numeric_limits<rep>::max()
+                : static_cast<rep>(total);
+        _totalSum = benchmark::duration_t(totalTicks);
+
+        const rep averageTicks = mean <= minDuration
+            ? std::numeric_limits<rep>::min()
+            : mean >= maxDuration
+                ? std::numeric_limits<rep>::max()
+                : static_cast<rep>(mean);
+        _average = benchmark::duration_t(averageTicks);
+
         const long double stdDev = std::sqrt(sumOfSquares / static_cast<long double>(count));
         const auto stdDevTicks = stdDev >= maxDuration
             ? std::numeric_limits<rep>::max()

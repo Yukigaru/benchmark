@@ -34,6 +34,25 @@ TEST(TimeStatistics, CalculatesLargeStandardDeviationWithoutOverflow)
     EXPECT_LE(difference, 1);
 }
 
+TEST(TimeStatistics, SaturatesOverflowingTotals)
+{
+    benchmark::TimeStatistics statistics;
+    statistics.addSample(benchmark::duration_t::max());
+    statistics.addSample(benchmark::duration_t::max());
+    ASSERT_TRUE(statistics.calculate());
+
+    EXPECT_EQ(benchmark::duration_t::max(), statistics.totalTimeRun());
+    EXPECT_EQ(benchmark::duration_t::max(), statistics.averageTime());
+    EXPECT_EQ(benchmark::duration_t(0), statistics.standardDeviation());
+
+    benchmark::TimeStatistics mixed;
+    mixed.addSample(benchmark::duration_t::max());
+    mixed.addSample(benchmark::duration_t::max());
+    mixed.addSample(-benchmark::duration_t::max());
+    ASSERT_TRUE(mixed.calculate());
+    EXPECT_EQ(benchmark::duration_t::max(), mixed.totalTimeRun());
+}
+
 TEST(BenchmarkState, GeneratesCompleteLinearRanges)
 {
     const auto zeroToTen = arguments(0, 10);
