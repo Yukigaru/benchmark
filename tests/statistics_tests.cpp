@@ -63,6 +63,25 @@ TEST(TimeStatistics, CalculatesMedianWithoutLosingOddTicks)
 }
 
 
+
+TEST(TimeStatistics, PercentileHandlesBoundsAndSingleSample)
+{
+    benchmark::TimeStatistics empty;
+    EXPECT_EQ(benchmark::duration_t(0), empty.percentile(90));
+
+    benchmark::TimeStatistics single;
+    single.addSample(benchmark::duration_t(7));
+    ASSERT_TRUE(single.calculate());
+    EXPECT_EQ(benchmark::duration_t(7), single.percentile(90));
+
+    benchmark::TimeStatistics values;
+    values.addSample(benchmark::duration_t(1));
+    values.addSample(benchmark::duration_t(3));
+    ASSERT_TRUE(values.calculate());
+    EXPECT_EQ(benchmark::duration_t(1), values.percentile(-1));
+    EXPECT_EQ(benchmark::duration_t(3), values.percentile(101));
+}
+
 TEST(BenchmarkState, GeneratesCompleteLinearRanges)
 {
     const auto zeroToTen = arguments(0, 10);

@@ -154,10 +154,16 @@ public:
     }
 
     benchmark::duration_t percentile(int nth) const {
-        size_t idx = (size_t)(_samples.size() * ((float)nth / 100.0f)) - 1;
-        if (idx < 0)
-            idx = 0;
-        return _samples[idx];
+        if (_samples.empty())
+            return benchmark::duration_t(0);
+
+        const size_t percentile = static_cast<size_t>(std::max(0, std::min(nth, 100)));
+        if (percentile == 0)
+            return _samples.front();
+
+        const size_t rank = (_samples.size() / 100) * percentile
+            + ((_samples.size() % 100) * percentile + 99) / 100;
+        return _samples[rank - 1];
     }
 
     benchmark::duration_t standardDeviation() const {
