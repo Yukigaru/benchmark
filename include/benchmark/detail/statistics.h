@@ -175,6 +175,8 @@ public:
     }
 
     double standardDeviationLevel() const {
+        if (_average == benchmark::duration_t(0))
+            return 0.0;
         return (double)_stdDev.count() / (double)_average.count();
     }
 };
