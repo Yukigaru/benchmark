@@ -4,5 +4,6 @@ if(NOT GTest_FOUND)
     return()
 endif()
 
-add_executable(tests tests.cpp statistics_tests.cpp)
-target_link_libraries(tests benchmark GTest::GTest)
+add_executable(benchmark_tests tests.cpp statistics_tests.cpp)
+target_link_libraries(benchmark_tests benchmark GTest::GTest)
+add_test(NAME benchmark_tests COMMAND benchmark_tests)

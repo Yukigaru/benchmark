@@ -30,5 +30,6 @@ if(WITH_EXAMPLES)
 endif()
 
 if(WITH_TESTS)
+    enable_testing()
     add_subdirectory(tests)
 endif()
