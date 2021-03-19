@@ -60,7 +60,7 @@ namespace benchmark {
             bool _needRestart;
 
         public:
-            BenchmarkState() :_firstTime(true), _needRestart(false), _currentArg1(0), _variablesDone(true) {
+            BenchmarkState() : _firstTime(true), _currentArg1(0), _variablesDone(true), _needRestart(false) {
             }
 
             bool addArgument(int from, int to) {
@@ -164,8 +164,8 @@ namespace benchmark {
 
         public:
             RunState(BenchmarkState &bstate, duration_t noopTime):
-                _bstate(bstate),
-                _noopTime(noopTime)
+                _noopTime(noopTime),
+                _bstate(bstate)
             {
             }
 
