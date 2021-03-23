@@ -9,7 +9,7 @@ static benchmark::BenchmarkSetup bs;
 TEST(Benchmark, Durations)
 {
     for (int timeMs = 10; timeMs <= 1000; timeMs *= 10) {
-        Benchmark b(bs);
+        benchmark::Benchmark b(bs);
         b.run([=](benchmark::detail::RunState &) { std::this_thread::sleep_for(std::chrono::milliseconds(timeMs)); });
         ASSERT_NEAR((double)std::chrono::milliseconds(timeMs).count(),
                     (double)std::chrono::duration_cast<std::chrono::milliseconds>(b.statistics().averageTime()).count(),
@@ -32,7 +32,7 @@ TEST(Benchmark, Durations)
 
 TEST(Main, CustomSamples)
 {
-    Benchmark b(bs);
+    benchmark::Benchmark b(bs);
 
     b.debugAddSample(std::chrono::milliseconds(1));
     b.debugAddSample(std::chrono::milliseconds(2));
@@ -50,14 +50,14 @@ TEST(Main, CustomSamples)
 
 TEST(Main, StdDeviation)
 {
-    Benchmark b(bs);
+    benchmark::Benchmark b(bs);
     b.run([](benchmark::detail::RunState &) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); });
     ASSERT_LT(b.statistics().standardDeviation(), std::chrono::microseconds(100));
 }
 
 TEST(Main, DoNothing)
 {
-    Benchmark b(bs);
+    benchmark::Benchmark b(bs);
 
     b.run([](benchmark::detail::RunState &) {
         // do nothing

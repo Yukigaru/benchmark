@@ -1,6 +1,6 @@
 #include <benchmark/benchmark.h>
 
-BenchmarkSilo::BenchmarkCont *BenchmarkSilo::benchmarks;
+benchmark::BenchmarkSilo::BenchmarkCont *benchmark::BenchmarkSilo::benchmarks;
 
 namespace benchmark {
 

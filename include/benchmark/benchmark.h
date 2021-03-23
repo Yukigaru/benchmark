@@ -37,6 +37,8 @@ BENCHMARK(Name) {
 }
 */
 
+namespace benchmark {
+
 class Benchmark {
     std::string _name;
     benchmark::BenchmarkSetup _setup;
@@ -309,9 +311,11 @@ public:
     }
 };
 
+} // namespace benchmark
+
 #define BENCHMARK(Name) \
-    struct Benchmark##Name: public Benchmark { \
-        Benchmark##Name(const char *name) : Benchmark(name) { \
+    struct Benchmark##Name: public ::benchmark::Benchmark { \
+        Benchmark##Name(const char *name) : ::benchmark::Benchmark(name) { \
         } \
         \
         void vrun() override { \
@@ -321,7 +325,7 @@ public:
     }; \
     struct RegisterBenchmark##Name { \
         RegisterBenchmark##Name() { \
-            BenchmarkSilo::registerBenchmark(new Benchmark##Name(#Name)); \
+            ::benchmark::BenchmarkSilo::registerBenchmark(new Benchmark##Name(#Name)); \
         } \
     } __registerBenchmark##Name; \
     \
@@ -337,7 +341,7 @@ public:
 #define ADD_ARG_RANGE(from, to) if (state.addArgument(from, to)) return; MEASURE_START
 #define ARG1 state.arg1()
 
-#define RUN_BENCHMARKS BenchmarkSilo::runAll();
-#define BENCHMARK_MAIN int main(int argc, char **argv) { int ret = RUN_BENCHMARKS; BenchmarkSilo::deleteAll(); return ret; }
+#define RUN_BENCHMARKS ::benchmark::BenchmarkSilo::runAll();
+#define BENCHMARK_MAIN int main(int argc, char **argv) { int ret = RUN_BENCHMARKS; ::benchmark::BenchmarkSilo::deleteAll(); return ret; }
 
 #define BENCHMARK_STATE benchmark::detail::RunState &state
