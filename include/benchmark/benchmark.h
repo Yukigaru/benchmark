@@ -39,7 +39,7 @@ BENCHMARK(Name) {
 
 class Benchmark {
     std::string _name;
-    BenchmarkSetup _setup;
+    benchmark::BenchmarkSetup _setup;
 
     benchmark::TimeStatistics _stats;
     unsigned _totalIterations;
@@ -50,10 +50,10 @@ class Benchmark {
 
 public:
     Benchmark(const char *name_ = "")
-            : Benchmark(BenchmarkSetup(), name_) {
+            : Benchmark(benchmark::BenchmarkSetup(), name_) {
     }
 
-    Benchmark(const BenchmarkSetup &setup_, const char *name_ = "")
+    Benchmark(const benchmark::BenchmarkSetup &setup_, const char *name_ = "")
             : _name(name_), _setup(setup_), _totalIterations(0), Iterations(200) {
         // clock's now() takes longer when called first time
         auto init_timer = benchmark::clock_t::now();
@@ -124,7 +124,7 @@ public:
 
         findNoopTime();
 
-        if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full)
+        if (_setup.outputStyle == benchmark::BenchmarkSetup::OutputStyle::Full)
             std::cout << "[Benchmark '" << _name << "'] started" << std::endl;
 
         benchmark::detail::BenchmarkState bs;
@@ -195,7 +195,7 @@ public:
         auto oldPrecision = std::cout.precision();
         std::cout << std::fixed; // disable scientific notation
 
-        if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full) {
+        if (_setup.outputStyle == benchmark::BenchmarkSetup::OutputStyle::Full) {
             if (!varg1) {
                 std::cout << "[Benchmark '" << _name << "'] done ";
             } else {
@@ -232,7 +232,7 @@ public:
             std::cout << "Min    : " << _stats.minimalTime() << "\n";
             std::cout << "Max    : " << _stats.maximalTime() << std::endl;
 
-        } else if (_setup.outputStyle == BenchmarkSetup::OutputStyle::OneLine) {
+        } else if (_setup.outputStyle == benchmark::BenchmarkSetup::OutputStyle::OneLine) {
             if (!varg1) {
                 std::cout << "[Benchmark '" << _name << "'] ";
             } else {

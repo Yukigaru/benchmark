@@ -3,6 +3,8 @@
 #include "config.h"
 #include "program_arguments.h"
 
+
+namespace benchmark {
 struct BenchmarkSetup {
     enum OutputStyle {
         Table,
@@ -44,3 +46,4 @@ struct BenchmarkSetup {
     bool verbose;
     bool skipWarmup;
 };
+} // namespace benchmark

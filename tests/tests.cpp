@@ -4,7 +4,7 @@
 #include <iostream>
 #include <thread>
 
-static BenchmarkSetup bs;
+static benchmark::BenchmarkSetup bs;
 
 TEST(Benchmark, Durations)
 {
@@ -73,7 +73,7 @@ TEST(Main, DoNothing)
 
 int main(int argc, char **argv)
 {
-    bs.outputStyle = BenchmarkSetup::Nothing;
+    bs.outputStyle = benchmark::BenchmarkSetup::Nothing;
     bs.verbose = true;
 
     testing::InitGoogleTest(&argc, argv);
