@@ -6,8 +6,7 @@
 
 namespace benchmark {
 struct BenchmarkSetup {
-    enum OutputStyle {
-        Table,
+    enum class OutputStyle {
         OneLine,
         Full,
         Nothing
@@ -30,8 +29,6 @@ struct BenchmarkSetup {
             outputStyle = OutputStyle::Full;
         } else if (outputStyle_ == "oneline") {
             outputStyle = OutputStyle::OneLine;
-        } else if (outputStyle_ == "table") {
-            outputStyle = OutputStyle::Table;
         } else if (outputStyle_ == "nothing") {
             outputStyle = OutputStyle::Nothing;
         } else {

@@ -73,7 +73,7 @@ TEST(Main, DoNothing)
 
 int main(int argc, char **argv)
 {
-    bs.outputStyle = benchmark::BenchmarkSetup::Nothing;
+    bs.outputStyle = benchmark::BenchmarkSetup::OutputStyle::Nothing;
     bs.verbose = true;
 
     testing::InitGoogleTest(&argc, argv);
