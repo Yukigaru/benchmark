@@ -24,15 +24,17 @@ struct BenchmarkSetup {
     {
         benchmark::detail::ProgramArguments args(argc, argv);
 
-        std::string outputStyle_ = args.after("output");
-        if (outputStyle_ == "full") {
-            outputStyle = OutputStyle::Full;
-        } else if (outputStyle_ == "oneline") {
-            outputStyle = OutputStyle::OneLine;
-        } else if (outputStyle_ == "nothing") {
-            outputStyle = OutputStyle::Nothing;
-        } else {
-            std::cerr << "Unexpected value of 'output' argument: " << outputStyle_ << std::endl;
+        if (args.contains("output")) {
+            const std::string value = args.after("output");
+            if (value == "full") {
+                outputStyle = OutputStyle::Full;
+            } else if (value == "oneline") {
+                outputStyle = OutputStyle::OneLine;
+            } else if (value == "nothing") {
+                outputStyle = OutputStyle::Nothing;
+            } else {
+                std::cerr << "Unexpected value of 'output' argument: " << value << std::endl;
+            }
         }
 
         verbose = args.contains("verbose");
