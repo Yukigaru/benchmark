@@ -6,6 +6,25 @@
 
 static benchmark::BenchmarkSetup bs;
 
+TEST(BenchmarkSetup, ParsesRunnerArguments)
+{
+    const char *argv[] = {"benchmark", "--output=nothing", "--iterations", "12",
+                          "--time-limit-ms=34", "--warmup-ms", "56"};
+    benchmark::BenchmarkSetup setup(7, argv);
+
+    EXPECT_EQ(benchmark::BenchmarkSetup::OutputStyle::Nothing, setup.outputStyle);
+    EXPECT_EQ(12u, setup.iterations);
+    EXPECT_EQ(std::chrono::milliseconds(34), setup.timeLimit);
+    EXPECT_EQ(std::chrono::milliseconds(56), setup.warmupTime);
+}
+
+TEST(BenchmarkSetup, RejectsNegativeUnsignedArguments)
+{
+    const char *argv[] = {"benchmark", "--iterations", "-1"};
+    benchmark::BenchmarkSetup setup(3, argv);
+    EXPECT_EQ(200u, setup.iterations);
+}
+
 TEST(Benchmark, Durations)
 {
     for (int timeMs = 10; timeMs <= 1000; timeMs *= 10) {

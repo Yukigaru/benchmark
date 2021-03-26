@@ -1,6 +1,9 @@
 #pragma once
+#include <chrono>
+#include <exception>
 #include <iostream>
-#include "config.h"
+#include <limits>
+#include <string>
 #include "program_arguments.h"
 
 
@@ -15,14 +18,17 @@ struct BenchmarkSetup {
     BenchmarkSetup():
         outputStyle(OutputStyle::OneLine),
         verbose(false),
-        skipWarmup(false)
+        skipWarmup(false),
+        iterations(200),
+        timeLimit(std::chrono::seconds(2)),
+        warmupTime(std::chrono::seconds(1))
     {
     }
 
-    BenchmarkSetup(int argc, const char **argv):
+    BenchmarkSetup(int argc, const char *const *argv):
         BenchmarkSetup()
     {
-        benchmark::detail::ProgramArguments args(argc, argv);
+        detail::ProgramArguments args(argc, argv);
 
         if (args.contains("output")) {
             const std::string value = args.after("output");
@@ -38,11 +44,41 @@ struct BenchmarkSetup {
         }
 
         verbose = args.contains("verbose");
-        skipWarmup = args.contains("skipWarmup");
+        skipWarmup = args.contains("skip-warmup", "skipWarmup");
+
+        iterations = readUnsigned(args, "iterations", iterations);
+        timeLimit = std::chrono::milliseconds(
+            readUnsigned(args, "time-limit-ms", static_cast<unsigned>(timeLimit.count())));
+        warmupTime = std::chrono::milliseconds(
+            readUnsigned(args, "warmup-ms", static_cast<unsigned>(warmupTime.count())));
     }
 
     OutputStyle outputStyle;
     bool verbose;
     bool skipWarmup;
+    unsigned iterations;
+    std::chrono::milliseconds timeLimit;
+    std::chrono::milliseconds warmupTime;
+
+private:
+    static unsigned readUnsigned(const detail::ProgramArguments &args, const char *name, unsigned fallback)
+    {
+        if (!args.contains(name))
+            return fallback;
+
+        const std::string value = args.after(name);
+        try {
+            std::size_t parsed = 0;
+            const unsigned long number = std::stoul(value, &parsed);
+            if (!value.empty() && value[0] != '-' && parsed == value.size() &&
+                number <= std::numeric_limits<unsigned>::max())
+                return static_cast<unsigned>(number);
+        } catch (const std::exception &) {
+        }
+
+        std::cerr << "Unexpected value of '" << name << "' argument: " << value << std::endl;
+        return fallback;
+    }
 };
+
 } // namespace benchmark

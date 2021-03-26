@@ -46,8 +46,6 @@ class Benchmark {
     benchmark::TimeStatistics _stats;
     unsigned _totalIterations;
 
-    unsigned Iterations;
-
     benchmark::duration_t _noopTime{0};
 
 public:
@@ -56,7 +54,7 @@ public:
     }
 
     Benchmark(const benchmark::BenchmarkSetup &setup_, const char *name_ = "")
-            : _name(name_), _setup(setup_), _totalIterations(0), Iterations(200) {
+            : _name(name_), _setup(setup_), _totalIterations(0) {
         // clock's now() takes longer when called first time
         auto init_timer = benchmark::clock_t::now();
         benchmark::DoNotOptimize(init_timer);
@@ -82,13 +80,11 @@ public:
                   << benchmark::detail::ColorReset
                   << std::endl;
 
-        static const auto WarmupTime = std::chrono::seconds(4);
-
         auto start = benchmark::clock_t::now(); // do nothing serious for N seconds cycle
         while (true) {
             unsigned p = rand();
             benchmark::DoNotOptimize(p);
-            if (benchmark::clock_t::now() - start > WarmupTime)
+            if (benchmark::clock_t::now() - start > _setup.warmupTime)
                 break;
         }
     }
@@ -141,7 +137,7 @@ public:
             }
             _stats.clear();
 
-            for (unsigned i = 0; i < Iterations;) {
+            for (unsigned i = 0; i < _setup.iterations;) {
                 benchmark::detail::RunState state(bs, _noopTime);
 
                 state.start();
@@ -161,7 +157,7 @@ public:
                 // give other processes chance to do their job, so that the scheduler is less willing to suspend ours
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-                if (std::chrono::steady_clock::now() - startTime > std::chrono::seconds(2))
+                if (std::chrono::steady_clock::now() - startTime > _setup.timeLimit)
                     break;
 
                 std::cout << (i % 5 ? "" : ".");
