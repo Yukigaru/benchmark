@@ -25,6 +25,11 @@ TEST(BenchmarkSetup, RejectsNegativeUnsignedArguments)
     EXPECT_EQ(200u, setup.iterations);
 }
 
+TEST(BenchmarkSilo, EmptyRegistryIsSafe)
+{
+    EXPECT_EQ(0, benchmark::BenchmarkSilo::runAll());
+}
+
 TEST(Benchmark, Durations)
 {
     for (int timeMs = 10; timeMs <= 1000; timeMs *= 10) {

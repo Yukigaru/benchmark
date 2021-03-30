@@ -292,6 +292,8 @@ public:
     }
 
     static int runAll() {
+        if (!benchmarks)
+            return 0;
         for (auto benchmark : *benchmarks) {
             benchmark->vrun();
         }
@@ -299,6 +301,8 @@ public:
     }
 
     static void deleteAll() {
+        if (!benchmarks)
+            return;
         for (auto benchmark : *benchmarks) {
             delete benchmark;
         }
