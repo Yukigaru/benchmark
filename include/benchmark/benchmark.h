@@ -66,8 +66,7 @@ public:
         }
     }
 
-    ~Benchmark() {
-    }
+    virtual ~Benchmark() = default;
 
     void warmupCpu() {
         static bool onlyOnce = false;
