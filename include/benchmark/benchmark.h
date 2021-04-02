@@ -280,33 +280,22 @@ public:
 };
 
 class BenchmarkSilo {
-    using BenchmarkCont = std::vector<Benchmark *>;
-    static BenchmarkCont *benchmarks;
+    using BenchmarkCont = std::vector<std::unique_ptr<Benchmark>>;
+
+    static BenchmarkCont &benchmarks() {
+        static BenchmarkCont result;
+        return result;
+    }
 
 public:
-    static void registerBenchmark(Benchmark *pb) {
-        if (!benchmarks) {
-            benchmarks = new BenchmarkCont();
-        }
-        benchmarks->push_back(pb);
+    static void registerBenchmark(std::unique_ptr<Benchmark> registeredBenchmark) {
+        benchmarks().push_back(std::move(registeredBenchmark));
     }
 
     static int runAll() {
-        if (!benchmarks)
-            return 0;
-        for (auto benchmark : *benchmarks) {
-            benchmark->vrun();
-        }
+        for (auto &registeredBenchmark : benchmarks())
+            registeredBenchmark->vrun();
         return 0;
-    }
-
-    static void deleteAll() {
-        if (!benchmarks)
-            return;
-        for (auto benchmark : *benchmarks) {
-            delete benchmark;
-        }
-        delete benchmarks;
     }
 };
 
@@ -324,7 +313,8 @@ public:
     }; \
     struct RegisterBenchmark##Name { \
         RegisterBenchmark##Name() { \
-            ::benchmark::BenchmarkSilo::registerBenchmark(new Benchmark##Name(#Name)); \
+            ::std::unique_ptr<::benchmark::Benchmark> registeredBenchmark(new Benchmark##Name(#Name)); \
+            ::benchmark::BenchmarkSilo::registerBenchmark(::std::move(registeredBenchmark)); \
         } \
     } __registerBenchmark##Name; \
     \
@@ -341,6 +331,6 @@ public:
 #define ARG1 state.arg1()
 
 #define RUN_BENCHMARKS ::benchmark::BenchmarkSilo::runAll();
-#define BENCHMARK_MAIN int main(int argc, char **argv) { int ret = RUN_BENCHMARKS; ::benchmark::BenchmarkSilo::deleteAll(); return ret; }
+#define BENCHMARK_MAIN int main() { return ::benchmark::BenchmarkSilo::runAll(); }
 
 #define BENCHMARK_STATE benchmark::detail::RunState &state
