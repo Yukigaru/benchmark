@@ -1,12 +1,13 @@
 #pragma once
 #include <chrono>
-#include <iosfwd>
+#include <iomanip>
+#include <memory>
+#include <ostream>
+#include "config.h"
 #include "colorization.h"
 #include "cpu_info.h"
 
 namespace benchmark {
-using duration_t = std::chrono::steady_clock::duration;
-
 namespace io {
 
 struct ColoredDuration {

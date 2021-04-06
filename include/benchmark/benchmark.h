@@ -8,6 +8,9 @@
 #include <thread>
 #include <iostream>
 #include <iomanip>
+#include <memory>
+#include <string>
+#include <utility>
 #include "detail/config.h"
 #include "detail/dont_optimize.h"
 #include "detail/benchmark_setup.h"
