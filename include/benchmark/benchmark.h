@@ -277,6 +277,10 @@ public:
     const benchmark::TimeStatistics & statistics() const {
         return _stats;
     }
+
+    void setSetup(const BenchmarkSetup &setup) {
+        _setup = setup;
+    }
 };
 
 class BenchmarkSilo {
@@ -292,9 +296,11 @@ public:
         benchmarks().push_back(std::move(registeredBenchmark));
     }
 
-    static int runAll() {
-        for (auto &registeredBenchmark : benchmarks())
+    static int runAll(const BenchmarkSetup &setup = BenchmarkSetup()) {
+        for (auto &registeredBenchmark : benchmarks()) {
+            registeredBenchmark->setSetup(setup);
             registeredBenchmark->vrun();
+        }
         return 0;
     }
 };
@@ -331,6 +337,6 @@ public:
 #define ARG1 state.arg1()
 
 #define RUN_BENCHMARKS ::benchmark::BenchmarkSilo::runAll();
-#define BENCHMARK_MAIN int main() { return ::benchmark::BenchmarkSilo::runAll(); }
+#define BENCHMARK_MAIN int main(int argc, char **argv) { return ::benchmark::BenchmarkSilo::runAll(::benchmark::BenchmarkSetup(argc, argv)); }
 
 #define BENCHMARK_STATE benchmark::detail::RunState &state

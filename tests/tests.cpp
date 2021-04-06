@@ -27,7 +27,7 @@ TEST(BenchmarkSetup, RejectsNegativeUnsignedArguments)
 
 TEST(BenchmarkSilo, EmptyRegistryIsSafe)
 {
-    EXPECT_EQ(0, benchmark::BenchmarkSilo::runAll());
+    EXPECT_EQ(0, benchmark::BenchmarkSilo::runAll(bs));
 }
 
 TEST(Benchmark, Durations)
