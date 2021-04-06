@@ -89,9 +89,11 @@ public:
     }
 
     void findNoopTime() {
-        _noopTime = std::chrono::nanoseconds(9999);
+        _noopTime = benchmark::duration_t::max();
         for (int i = 0; i < 20; i++) {
-            auto d = benchmark::clock_t::now() - benchmark::clock_t::now();
+            const auto start = benchmark::clock_t::now();
+            const auto end = benchmark::clock_t::now();
+            const auto d = end - start;
             if (d < _noopTime) {
                 _noopTime = d;
             }
