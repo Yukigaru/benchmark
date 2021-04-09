@@ -133,7 +133,6 @@ public:
         benchmark::detail::BenchmarkState bs;
 
         while (bs.running()) {
-            bool firstRun = true;
             _totalIterations = 0;
             auto startTime = std::chrono::steady_clock::now();
 
@@ -155,7 +154,6 @@ public:
                 benchmark::duration_t sample = state.getSample();
 
                 _totalIterations++;
-                firstRun = false;
                 _stats.addSample(sample);
                 i++;
 
