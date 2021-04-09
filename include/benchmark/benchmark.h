@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <vector>
 #include <cmath>
 #include <mutex>
@@ -84,7 +85,7 @@ public:
 
         auto start = benchmark::clock_t::now(); // do nothing serious for N seconds cycle
         while (true) {
-            unsigned p = rand();
+            unsigned p = static_cast<unsigned>(std::rand());
             benchmark::DoNotOptimize(p);
             if (benchmark::clock_t::now() - start > _setup.warmupTime)
                 break;
