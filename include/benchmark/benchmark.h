@@ -62,12 +62,6 @@ public:
         // clock's now() takes longer when called first time
         auto init_timer = benchmark::clock_t::now();
         benchmark::DoNotOptimize(init_timer);
-
-        static bool onlyOnce = false;
-        if (!onlyOnce) {
-            onlyOnce = true;
-            printCPULoad();
-        }
     }
 
     virtual ~Benchmark() = default;
@@ -120,6 +114,12 @@ public:
             }
         }
 
+
+        static bool printedCpuLoad = false;
+        if (!printedCpuLoad && _setup.outputStyle != benchmark::BenchmarkSetup::OutputStyle::Nothing) {
+            printedCpuLoad = true;
+            printCPULoad();
+        }
         int ret = setpriority(PRIO_PROCESS, 0, -20);
         if (ret == -1) {
             std::cout << "Couldn't to set priority (code " << errno << "), try to run with administrator privileges" << std::endl;
@@ -165,15 +165,19 @@ public:
                 if (std::chrono::steady_clock::now() - startTime > _setup.timeLimit)
                     break;
 
-                std::cout << (i % 5 ? "" : ".");
-                std::cout.flush();
+                if (_setup.outputStyle == benchmark::BenchmarkSetup::OutputStyle::Full) {
+                    std::cout << (i % 5 ? "" : ".");
+                    std::cout.flush();
+                }
             }
 
             if (!_stats.empty()) {
                 calculateTimings();
 
-                std::cout << "\r";
-                std::cout.flush();
+                if (_setup.outputStyle != benchmark::BenchmarkSetup::OutputStyle::Nothing) {
+                    std::cout << "\r";
+                    std::cout.flush();
+                }
 
                 if (bs.variableArgsMode()) {
                     int varg1 = bs.getArg();
