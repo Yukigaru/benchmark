@@ -9,13 +9,14 @@ static benchmark::BenchmarkSetup bs;
 TEST(BenchmarkSetup, ParsesRunnerArguments)
 {
     const char *argv[] = {"benchmark", "--output=nothing", "--iterations", "12",
-                          "--time-limit-ms=34", "--warmup-ms", "56"};
-    benchmark::BenchmarkSetup setup(7, argv);
+                          "--time-limit-ms=34", "--warmup-ms", "56", "--high-priority"};
+    benchmark::BenchmarkSetup setup(8, argv);
 
     EXPECT_EQ(benchmark::BenchmarkSetup::OutputStyle::Nothing, setup.outputStyle);
     EXPECT_EQ(12u, setup.iterations);
     EXPECT_EQ(std::chrono::milliseconds(34), setup.timeLimit);
     EXPECT_EQ(std::chrono::milliseconds(56), setup.warmupTime);
+    EXPECT_TRUE(setup.adjustPriority);
 }
 
 TEST(BenchmarkSetup, RejectsNegativeUnsignedArguments)

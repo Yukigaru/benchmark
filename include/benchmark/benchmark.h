@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cerrno>
 #include <cstdlib>
 #include <vector>
 #include <cmath>
@@ -21,7 +22,9 @@
 #include "detail/colorization.h"
 #include "detail/chrono_utils.h"
 
+#if defined(__unix__) || defined(__APPLE__)
 #include <sys/resource.h>
+#endif
 
 /*
 Usage:
@@ -42,6 +45,49 @@ BENCHMARK(Name) {
 */
 
 namespace benchmark {
+namespace detail {
+
+class ScopedPriority {
+#if defined(__unix__) || defined(__APPLE__)
+    int _originalPriority{0};
+    bool _changed{false};
+#endif
+
+public:
+    ScopedPriority(bool enabled, bool verbose)
+    {
+#if defined(__unix__) || defined(__APPLE__)
+        if (!enabled)
+            return;
+
+        errno = 0;
+        _originalPriority = getpriority(PRIO_PROCESS, 0);
+        if (errno != 0 || setpriority(PRIO_PROCESS, 0, -20) != 0) {
+            if (verbose)
+                std::cerr << "Could not raise process priority (code " << errno << ")\n";
+            return;
+        }
+        _changed = true;
+#else
+        (void)enabled;
+        (void)verbose;
+#endif
+    }
+
+    ~ScopedPriority()
+    {
+#if defined(__unix__) || defined(__APPLE__)
+        if (_changed)
+            setpriority(PRIO_PROCESS, 0, _originalPriority);
+#endif
+    }
+
+    ScopedPriority(const ScopedPriority &) = delete;
+    ScopedPriority &operator=(const ScopedPriority &) = delete;
+};
+
+} // namespace detail
+
 
 class Benchmark {
     std::string _name;
@@ -120,10 +166,7 @@ public:
             printedCpuLoad = true;
             printCPULoad();
         }
-        int ret = setpriority(PRIO_PROCESS, 0, -20);
-        if (ret == -1) {
-            std::cout << "Couldn't to set priority (code " << errno << "), try to run with administrator privileges" << std::endl;
-        }
+        benchmark::detail::ScopedPriority priority(_setup.adjustPriority, _setup.verbose);
 
         findNoopTime();
 

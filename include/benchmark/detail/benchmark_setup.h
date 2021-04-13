@@ -19,6 +19,7 @@ struct BenchmarkSetup {
         outputStyle(OutputStyle::OneLine),
         verbose(false),
         skipWarmup(false),
+        adjustPriority(false),
         iterations(200),
         timeLimit(std::chrono::seconds(2)),
         warmupTime(std::chrono::seconds(1))
@@ -45,6 +46,7 @@ struct BenchmarkSetup {
 
         verbose = args.contains("verbose");
         skipWarmup = args.contains("skip-warmup", "skipWarmup");
+        adjustPriority = args.contains("high-priority");
 
         iterations = readUnsigned(args, "iterations", iterations);
         timeLimit = std::chrono::milliseconds(
@@ -56,6 +58,7 @@ struct BenchmarkSetup {
     OutputStyle outputStyle;
     bool verbose;
     bool skipWarmup;
+    bool adjustPriority;
     unsigned iterations;
     std::chrono::milliseconds timeLimit;
     std::chrono::milliseconds warmupTime;
