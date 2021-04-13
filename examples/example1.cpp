@@ -76,7 +76,4 @@ BENCHMARK(SyscallGetTime)
 }
 #endif
 
-int main()
-{
-    RUN_BENCHMARKS
-}
+BENCHMARK_MAIN
