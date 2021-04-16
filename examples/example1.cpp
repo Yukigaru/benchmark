@@ -1,5 +1,6 @@
 #include <atomic>
 #include <benchmark/benchmark.h>
+#include <cstddef>
 #include <mutex>
 #include <list>
 #include <vector>
@@ -32,7 +33,7 @@ BENCHMARK(SSO)
     ADD_ARG_RANGE(4, 32);
     char buf[] = "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc";
     MEASURE(
-        std::string s(buf, ARG1);
+        std::string s(buf, static_cast<std::size_t>(ARG1));
         benchmark::DoNotOptimize(s);
     )
 }
