@@ -52,7 +52,7 @@ inline std::ostream& operator <<(std::ostream &os, benchmark::duration_t duratio
     } else {
         os << std::setprecision(2) << (float) durationSec / 60.0f << " min";
     }
-    os << benchmark::detail::ColorReset << std::setprecision(oldPrecision);
+    os << benchmark::detail::ColorReset << std::setprecision(static_cast<int>(oldPrecision));
     return os;
 }
 
@@ -75,7 +75,7 @@ inline std::ostream& operator <<(std::ostream &os, benchmark::io::Iterations v) 
     } else { // millions
         os << std::setprecision(1) << (float) v.iterations / 1000000.0f << "m";
     }
-    os << std::setprecision(oldPrecision);
+    os << std::setprecision(static_cast<int>(oldPrecision));
     return os;
 }
 

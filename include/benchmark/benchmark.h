@@ -256,8 +256,8 @@ public:
             std::cout << "Avg    : " << _stats.averageTime();
             if (_stats.averageTime() > std::chrono::milliseconds(1)) {
                 std::cout << " (" << std::setprecision(3)
-                          << 1000000.0f /
-                             std::chrono::duration_cast<std::chrono::microseconds>(_stats.averageTime()).count()
+                          << 1000000.0 /
+                             static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(_stats.averageTime()).count())
                           << " fps)\n";
             } else {
                 std::cout << "\n";
@@ -292,8 +292,8 @@ public:
             std::cout << ", avg: " << _stats.averageTime();
             if (_stats.averageTime() > std::chrono::milliseconds(1)) {
                 std::cout << " (" << std::setprecision(3)
-                          << (1000000.0f /
-                              std::chrono::duration_cast<std::chrono::microseconds>(_stats.averageTime()).count())
+                          << (1000000.0 /
+                              static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(_stats.averageTime()).count()))
                           << " fps)";
             }
 
@@ -311,7 +311,7 @@ public:
 
             std::cout << ", min: " << _stats.minimalTime() << std::endl;
         }
-        std::cout << std::setprecision(oldPrecision);
+        std::cout << std::setprecision(static_cast<int>(oldPrecision));
     }
 
     void printCPULoad() {
