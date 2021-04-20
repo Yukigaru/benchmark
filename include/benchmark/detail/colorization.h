@@ -4,7 +4,7 @@ namespace benchmark {
     namespace detail {
         using ColorTag = const char *;
 
-#ifndef WIN32
+#if !defined(_WIN32)
         static ColorTag ColorLightGreen = "\x1B[92m";
         static ColorTag ColorLightYellow = "\x1B[33m";
         static ColorTag ColorLightRed = "\x1B[91m";
@@ -13,7 +13,7 @@ namespace benchmark {
 #else
         static ColorTag ColorLightGreen = "";
         static ColorTag ColorLightYellow = "";
-        static ColorTag ColorLightGray = "";
+        static ColorTag ColorLightRed = "";
         static ColorTag ColorRed = "";
         static ColorTag ColorReset = "";
 #endif
