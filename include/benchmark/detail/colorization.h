@@ -18,7 +18,7 @@ namespace benchmark {
         static ColorTag ColorReset = "";
 #endif
 
-        static ColorTag selectColorForCPULoad(float relValue) { // value is in [0.0, 1.0] range
+        inline ColorTag selectColorForCPULoad(float relValue) { // [0.0, 1.0]
             if (relValue > 0.6f) {
                 return ColorLightRed;
             } else if (relValue > 0.2f) {
@@ -27,7 +27,7 @@ namespace benchmark {
             return ColorLightGreen;
         }
 
-        static ColorTag selectColorForCPUFreq(float relValue) { // value is in [0.0, 1.0] range
+        inline ColorTag selectColorForCPUFreq(float relValue) { // [0.0, 1.0]
             if (relValue < 0.6f) {
                 return ColorLightRed;
             } else if (relValue < 0.8f) {
