@@ -84,27 +84,34 @@ inline std::ostream& operator <<(std::ostream &os, std::unique_ptr<benchmark::de
         return os << "n/a";
 
     for (int i = 0; i < cpuLoad->numCores; i++) {
-        float loadRel = cpuLoad->loadByCore[i];
+        const float loadRel = cpuLoad->loadByCore[static_cast<size_t>(i)];
 
-        benchmark::detail::ColorTag color = benchmark::detail::selectColorForCPULoad(loadRel);
-        os << "[Core " << i << ": " << color << (int) (loadRel * 100.0f) << "%"
-                  << benchmark::detail::ColorReset << "] ";
+        os << "[Core " << i << ": ";
+        if (loadRel < 0.0f) {
+            os << "n/a";
+        } else {
+            benchmark::detail::ColorTag color = benchmark::detail::selectColorForCPULoad(loadRel);
+            os << color << (int) (loadRel * 100.0f) << "%" << benchmark::detail::ColorReset;
+        }
+        os << "] ";
 
         if (i % 4 == 0 && i > 0) // split by a column
             os << "\n";
     }
     os << "\n";
     for (int i = 0; i < cpuLoad->numCores; i++) {
-        int curFreq = cpuLoad->freqByCore[i].curFreq;
-        int maxFreq = cpuLoad->freqByCore[i].maxFreq;
+        const int curFreq = cpuLoad->freqByCore[static_cast<size_t>(i)].curFreq;
+        const int maxFreq = cpuLoad->freqByCore[static_cast<size_t>(i)].maxFreq;
 
-        float freqRel = 0.0f;
-        if (curFreq > 0 && maxFreq > 0)
-            freqRel = (float) curFreq / (float) maxFreq;
-
-        benchmark::detail::ColorTag color = benchmark::detail::selectColorForCPUFreq(freqRel);
-        os << "[Freq " << i << ": " << color << (int) (freqRel * 100.0f) << "%"
-                  << benchmark::detail::ColorReset << "] ";
+        os << "[Freq " << i << ": ";
+        if (curFreq <= 0 || maxFreq <= 0) {
+            os << "n/a";
+        } else {
+            const float freqRel = (float) curFreq / (float) maxFreq;
+            benchmark::detail::ColorTag color = benchmark::detail::selectColorForCPUFreq(freqRel);
+            os << color << (int) (freqRel * 100.0f) << "%" << benchmark::detail::ColorReset;
+        }
+        os << "] ";
 
         if (i % 4 == 0 && i > 0) // split by a column
             os << "\n";

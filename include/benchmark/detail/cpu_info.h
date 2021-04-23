@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
-#include <iostream>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -29,14 +28,8 @@ inline int getCPUCoresNum() {
 #if defined(__linux__)
 inline std::string getFileText(const std::string &filePath) {
     std::ifstream stream(filePath.c_str());
-    if (!stream) {
-        std::cerr << "Couldn't open '" << filePath << "'\n";
-        return "";
-    }
     std::string text;
     std::getline(stream, text);
-    if (!stream && text.empty())
-        std::cerr << "Couldn't read from '" << filePath << "'\n";
     return text;
 }
 #endif
@@ -49,26 +42,26 @@ inline bool isCPUScalingEnabled() {
                                          std::to_string(i) +
                                          "/cpufreq/scaling_governor";
         const std::string governor = getFileText(governorPath);
-        if (governor != "performance")
+        if (!governor.empty() && governor != "performance")
             return true;
     }
 #endif
+    // Scaling state unknown
     return false;
 }
 
 inline std::vector<CoreFrequency> readCPUFreqs() {
-    std::vector<CoreFrequency> result;
+    const int coresNum = getCPUCoresNum();
+    std::vector<CoreFrequency> result(static_cast<std::size_t>(coresNum), {0, 0});
 
 #if defined(__linux__)
-    const int coresNum = getCPUCoresNum();
-    result.reserve(static_cast<std::size_t>(coresNum));
     for (int i = 0; i < coresNum; ++i) {
         const std::string cpuPath = "/sys/devices/system/cpu/cpu" +
                                     std::to_string(i) + "/cpufreq/";
-        result.push_back({
+        result[static_cast<std::size_t>(i)] = {
             std::atoi(getFileText(cpuPath + "scaling_cur_freq").c_str()),
             std::atoi(getFileText(cpuPath + "cpuinfo_max_freq").c_str())
-        });
+        };
     }
 #endif
 
