@@ -153,8 +153,8 @@ inline std::unique_ptr<CPULoadResult> getCPULoad() {
         const std::uint64_t secondLoad = second->statsByCore[i].loadTime();
         const std::uint64_t firstIdle = first->statsByCore[i].idleTime();
         const std::uint64_t secondIdle = second->statsByCore[i].idleTime();
-        const std::uint64_t loadDelta = secondLoad - firstLoad;
-        const std::uint64_t idleDelta = secondIdle - firstIdle;
+        const std::uint64_t loadDelta = secondLoad >= firstLoad ? secondLoad - firstLoad : 0;
+        const std::uint64_t idleDelta = secondIdle >= firstIdle ? secondIdle - firstIdle : 0;
         const std::uint64_t totalDelta = loadDelta + idleDelta;
 
         result->loadByCore.push_back(totalDelta == 0
