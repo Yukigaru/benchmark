@@ -80,6 +80,9 @@ inline std::ostream& operator <<(std::ostream &os, benchmark::io::Iterations v) 
 }
 
 inline std::ostream& operator <<(std::ostream &os, std::unique_ptr<benchmark::detail::CPULoadResult> &cpuLoad) {
+    if (!cpuLoad || cpuLoad->numCores <= 0)
+        return os << "n/a";
+
     for (int i = 0; i < cpuLoad->numCores; i++) {
         float loadRel = cpuLoad->loadByCore[i];
 

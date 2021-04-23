@@ -1,14 +1,17 @@
 #pragma once
-#include <string>
-#include <cstdio>
-#include <cstring>
-#include <memory>
-#include <fstream>
-#include <sstream>
 
-#ifndef WIN32
-#include <sched.h>
-#endif
+#include <algorithm>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <vector>
 
 namespace benchmark {
 namespace detail {
@@ -18,101 +21,58 @@ struct CoreFrequency {
     int maxFreq;
 };
 
-static int getCPUCoresNum() {
-    int cpuCores = 0;
-
-#ifdef WIN32
-    return 1;
-#else
-    // open '/proc/cpuinfo' and count 'processor' word
-    FILE *fh = std::fopen("/proc/cpuinfo", "rb");
-    if (!fh)
-        return 1;
-
-    static const int BufSize = 1000;
-    char *buf = (char *)std::malloc(BufSize);
-
-    while (true) {
-        if (!std::fgets(buf, BufSize, fh))
-            break;
-
-        if (std::strstr(buf, "processor")) {
-            cpuCores++;
-        }
-    }
-    std::fclose(fh);
-    std::free(buf);
-
-    if (cpuCores == 0)
-        return 1;
-
-    return cpuCores;
-#endif
+inline int getCPUCoresNum() {
+    const unsigned cores = std::thread::hardware_concurrency();
+    return cores == 0 ? 1 : static_cast<int>(cores);
 }
 
-static std::string getFileText(const std::string &filePath) {
-    static const int BufSize = 256;
-    char buf[BufSize];
-
-    FILE *fh = std::fopen(filePath.c_str(), "r");
-    if (!fh) {
+#if defined(__linux__)
+inline std::string getFileText(const std::string &filePath) {
+    std::ifstream stream(filePath.c_str());
+    if (!stream) {
         std::cerr << "Couldn't open '" << filePath << "'\n";
         return "";
     }
-
-    char *fresult = std::fgets(buf, BufSize, fh);
-    if (!fresult) {
-        std::fclose(fh);
+    std::string text;
+    std::getline(stream, text);
+    if (!stream && text.empty())
         std::cerr << "Couldn't read from '" << filePath << "'\n";
-        return "";
-    }
-    std::fclose(fh);
-
-    return std::string(buf);
+    return text;
 }
-
-static bool isCPUScalingEnabled() {
-#ifdef WIN32
-    return false;
-#else
-    int coresNum = getCPUCoresNum();
-
-    for (int i = 0; i < coresNum; i++) {
-        std::string governorPath = "/sys/devices/system/cpu/cpu";
-        governorPath += std::to_string(i);
-        governorPath += "/cpufreq/scaling_governor";
-
-        std::string governorText = getFileText(governorPath);
-        if (governorText != "performance\n" &&
-            governorText != "performance") {
-            return true;
-        }
-    }
-
-    return false;
 #endif
+
+inline bool isCPUScalingEnabled() {
+#if defined(__linux__)
+    const int coresNum = getCPUCoresNum();
+    for (int i = 0; i < coresNum; ++i) {
+        const std::string governorPath = "/sys/devices/system/cpu/cpu" +
+                                         std::to_string(i) +
+                                         "/cpufreq/scaling_governor";
+        const std::string governor = getFileText(governorPath);
+        if (governor != "performance")
+            return true;
+    }
+#endif
+    return false;
 }
 
-static std::vector<CoreFrequency> readCPUFreqs() {
-#ifdef WIN32
-    return std::vector<CoreFrequency>();
-#else
-    int coresNum = getCPUCoresNum();
+inline std::vector<CoreFrequency> readCPUFreqs() {
     std::vector<CoreFrequency> result;
 
-    for (int i = 0; i < coresNum; i++) {
-        std::string cpuPath = "/sys/devices/system/cpu/cpu";
-        cpuPath += std::to_string(i);
-        cpuPath += "/cpufreq/";
-
-        std::string curFreqText = getFileText(cpuPath + "scaling_cur_freq");
-        std::string maxFreqText = getFileText(cpuPath + "cpuinfo_max_freq");
-
-        result.push_back({std::atoi(curFreqText.c_str()), std::atoi(maxFreqText.c_str())});
+#if defined(__linux__)
+    const int coresNum = getCPUCoresNum();
+    result.reserve(static_cast<std::size_t>(coresNum));
+    for (int i = 0; i < coresNum; ++i) {
+        const std::string cpuPath = "/sys/devices/system/cpu/cpu" +
+                                    std::to_string(i) + "/cpufreq/";
+        result.push_back({
+            std::atoi(getFileText(cpuPath + "scaling_cur_freq").c_str()),
+            std::atoi(getFileText(cpuPath + "cpuinfo_max_freq").c_str())
+        });
     }
+#endif
 
     return result;
-#endif
 }
 
 enum CPUStates
@@ -131,17 +91,16 @@ enum CPUStates
 };
 
 struct CPUCoreStats {
-    size_t timeSample[NumStates];
+    std::uint64_t timeSample[NumStates];
 
-    size_t idleTime() const {
+    std::uint64_t idleTime() const {
         return timeSample[StateIdle] + timeSample[StateIOWait];
     }
 
-    size_t loadTime() const {
-        size_t result = 0;
-        for (int i = 0; i < NumStates; i++) {
+    std::uint64_t loadTime() const {
+        std::uint64_t result = 0;
+        for (int i = 0; i < NumStates; ++i)
             result += timeSample[i];
-        }
         return result - idleTime();
     }
 };
@@ -150,29 +109,31 @@ struct CPUStats {
     std::vector<CPUCoreStats> statsByCore;
 };
 
-static std::unique_ptr<CPUStats> readCPUStats()
+inline std::unique_ptr<CPUStats> readCPUStats()
 {
-    std::ifstream ifs("/proc/stat");
+    std::unique_ptr<CPUStats> result(new CPUStats{});
 
-    std::unique_ptr<CPUStats> result{ new CPUStats{} };
-
+#if defined(__linux__)
+    std::ifstream stream("/proc/stat");
     std::string line;
-    while (std::getline(ifs, line)) {
-        if (!line.compare(0, 3, "cpu")) {
-            std::istringstream ss(line);
-            std::string cpuLabel;
-            ss >> cpuLabel;
+    while (std::getline(stream, line)) {
+        if (line.compare(0, 3, "cpu") != 0)
+            continue;
 
-            if (cpuLabel == "cpu") // total stats, skip
-                continue;
+        std::istringstream values(line);
+        std::string cpuLabel;
+        values >> cpuLabel;
+        if (cpuLabel == "cpu")
+            continue;
+        if (cpuLabel.size() == 3 || cpuLabel.find_first_not_of("0123456789", 3) != std::string::npos)
+            continue;
 
-            result->statsByCore.push_back({});
-            CPUCoreStats &coreStats = result->statsByCore.back();
-
-            for (size_t i = 0; i < NumStates; ++i)
-                ss >> coreStats.timeSample[i];
-        }
+        result->statsByCore.push_back({});
+        CPUCoreStats &coreStats = result->statsByCore.back();
+        for (std::size_t i = 0; i < NumStates && values; ++i)
+            values >> coreStats.timeSample[i];
     }
+#endif
 
     return result;
 }
@@ -183,30 +144,35 @@ struct CPULoadResult {
     std::vector<CoreFrequency> freqByCore;
 };
 
-static std::unique_ptr<CPULoadResult> getCPULoad() {
-    int cores = getCPUCoresNum();
+inline std::unique_ptr<CPULoadResult> getCPULoad() {
+    std::unique_ptr<CPUStats> first = readCPUStats();
+    if (!first->statsByCore.empty())
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    std::unique_ptr<CPUStats> second = readCPUStats();
 
-    std::unique_ptr<CPUStats> s1 = readCPUStats();
-    std::this_thread::sleep_for(std::chrono::milliseconds(300));
-    std::unique_ptr<CPUStats> s2 = readCPUStats();
+    const std::size_t cores = std::min(first->statsByCore.size(), second->statsByCore.size());
+    std::vector<CoreFrequency> frequencies = readCPUFreqs();
+    std::unique_ptr<CPULoadResult> result(new CPULoadResult{});
+    result->numCores = static_cast<int>(cores);
 
-    std::vector<CoreFrequency> freqs = readCPUFreqs();
+    for (std::size_t i = 0; i < cores; ++i) {
+        const std::uint64_t firstLoad = first->statsByCore[i].loadTime();
+        const std::uint64_t secondLoad = second->statsByCore[i].loadTime();
+        const std::uint64_t firstIdle = first->statsByCore[i].idleTime();
+        const std::uint64_t secondIdle = second->statsByCore[i].idleTime();
+        const std::uint64_t loadDelta = secondLoad - firstLoad;
+        const std::uint64_t idleDelta = secondIdle - firstIdle;
+        const std::uint64_t totalDelta = loadDelta + idleDelta;
 
-    std::unique_ptr<CPULoadResult> result{ new CPULoadResult{} };
-    result->numCores = cores;
-
-    for (int i = 0; i < cores; i++) {
-        size_t loadTimeD = s2->statsByCore[i].loadTime() - s1->statsByCore[i].loadTime();
-        size_t idleTimeD = s2->statsByCore[i].idleTime() - s1->statsByCore[i].idleTime();
-        size_t totalTimeD = loadTimeD + idleTimeD;
-        result->loadByCore.push_back((float)loadTimeD / (float)totalTimeD);
-
-        int curFreq = freqs.empty() ? 0 : freqs[i].curFreq;
-        int maxFreq = freqs.empty() ? 0 : freqs[i].maxFreq;
-        result->freqByCore.push_back({curFreq, maxFreq});
+        result->loadByCore.push_back(totalDelta == 0
+            ? -1.0f
+            : static_cast<float>(loadDelta) / static_cast<float>(totalDelta));
+        result->freqByCore.push_back(i < frequencies.size()
+            ? frequencies[i]
+            : CoreFrequency{0, 0});
     }
 
     return result;
 }
 
-}} //namespaces
+}} // namespaces
