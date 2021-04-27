@@ -123,7 +123,8 @@ struct CPUCoreStats {
 
     std::uint64_t loadTime() const {
         std::uint64_t result = 0;
-        for (int i = 0; i < NumStates; ++i)
+        // guest time is already in user/nice
+        for (int i = 0; i <= StateSteal; ++i)
             result += timeSample[i];
         return result - idleTime();
     }
