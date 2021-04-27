@@ -8,7 +8,7 @@
 - CPU frequency scaling detection
 - CMake support
 
-Platforms: Linux. Not tested on Windows.
+Platforms: Linux and macOS. Windows builds without CPU telemetry.
 
 # Quick start
 

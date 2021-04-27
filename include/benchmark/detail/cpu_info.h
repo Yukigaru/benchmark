@@ -12,6 +12,12 @@
 #include <thread>
 #include <vector>
 
+#if defined(__APPLE__)
+#include <mach/mach.h>
+#include <mach/processor_info.h>
+#include <sys/sysctl.h>
+#endif
+
 namespace benchmark {
 namespace detail {
 
@@ -21,6 +27,13 @@ struct CoreFrequency {
 };
 
 inline int getCPUCoresNum() {
+#if defined(__APPLE__)
+    int sysctlCores = 0;
+    std::size_t size = sizeof(sysctlCores);
+    if (sysctlbyname("hw.logicalcpu", &sysctlCores, &size, nullptr, 0) == 0 && sysctlCores > 0)
+        return sysctlCores;
+#endif
+
     const unsigned cores = std::thread::hardware_concurrency();
     return cores == 0 ? 1 : static_cast<int>(cores);
 }
@@ -50,6 +63,14 @@ inline bool isCPUScalingEnabled() {
     return false;
 }
 
+#if defined(__APPLE__)
+inline std::uint64_t readSysctlUInt64(const char *name) {
+    std::uint64_t value = 0;
+    std::size_t size = sizeof(value);
+    return sysctlbyname(name, &value, &size, nullptr, 0) == 0 ? value : 0;
+}
+#endif
+
 inline std::vector<CoreFrequency> readCPUFreqs() {
     const int coresNum = getCPUCoresNum();
     std::vector<CoreFrequency> result(static_cast<std::size_t>(coresNum), {0, 0});
@@ -63,6 +84,16 @@ inline std::vector<CoreFrequency> readCPUFreqs() {
             std::atoi(getFileText(cpuPath + "cpuinfo_max_freq").c_str())
         };
     }
+#elif defined(__APPLE__)
+    // Frequency may be unavailable on Apple Silicon
+    const std::uint64_t currentHz = readSysctlUInt64("hw.cpufrequency");
+    std::uint64_t maximumHz = readSysctlUInt64("hw.cpufrequency_max");
+    if (maximumHz == 0)
+        maximumHz = currentHz;
+
+    const int currentKHz = static_cast<int>(currentHz / 1000);
+    const int maximumKHz = static_cast<int>(maximumHz / 1000);
+    std::fill(result.begin(), result.end(), CoreFrequency{currentKHz, maximumKHz});
 #endif
 
     return result;
@@ -126,6 +157,30 @@ inline std::unique_ptr<CPUStats> readCPUStats()
         for (std::size_t i = 0; i < NumStates && values; ++i)
             values >> coreStats.timeSample[i];
     }
+#elif defined(__APPLE__)
+    natural_t processorCount = 0;
+    processor_info_array_t info = nullptr;
+    mach_msg_type_number_t infoCount = 0;
+    const host_t host = mach_host_self();
+    const kern_return_t status = host_processor_info(
+        host, PROCESSOR_CPU_LOAD_INFO, &processorCount, &info, &infoCount);
+    mach_port_deallocate(mach_task_self(), host);
+    if (status != KERN_SUCCESS || info == nullptr)
+        return result;
+
+    const processor_cpu_load_info_data_t *loads =
+        reinterpret_cast<const processor_cpu_load_info_data_t *>(info);
+    result->statsByCore.resize(processorCount);
+    for (natural_t i = 0; i < processorCount; ++i) {
+        CPUCoreStats &coreStats = result->statsByCore[i];
+        coreStats.timeSample[StateUser] = loads[i].cpu_ticks[CPU_STATE_USER];
+        coreStats.timeSample[StateNice] = loads[i].cpu_ticks[CPU_STATE_NICE];
+        coreStats.timeSample[StateSystem] = loads[i].cpu_ticks[CPU_STATE_SYSTEM];
+        coreStats.timeSample[StateIdle] = loads[i].cpu_ticks[CPU_STATE_IDLE];
+    }
+
+    vm_deallocate(mach_task_self(), reinterpret_cast<vm_address_t>(info),
+                  infoCount * sizeof(integer_t));
 #endif
 
     return result;
