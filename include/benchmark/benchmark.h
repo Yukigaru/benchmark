@@ -162,7 +162,8 @@ public:
 
 
         static bool printedCpuLoad = false;
-        if (!printedCpuLoad && _setup.outputStyle != benchmark::BenchmarkSetup::OutputStyle::Nothing) {
+        if (!printedCpuLoad && _setup.showCpuInfo &&
+            _setup.outputStyle != benchmark::BenchmarkSetup::OutputStyle::Nothing) {
             printedCpuLoad = true;
             printCPULoad();
         }
