@@ -91,19 +91,19 @@ public:
 
 class Benchmark {
     std::string _name;
-    benchmark::BenchmarkSetup _setup;
+    BenchmarkSetup _setup;
 
-    benchmark::TimeStatistics _stats;
+    TimeStatistics _stats;
     unsigned _totalIterations;
 
     benchmark::duration_t _noopTime{0};
 
 public:
     Benchmark(const char *name_ = "")
-            : Benchmark(benchmark::BenchmarkSetup(), name_) {
+            : Benchmark(BenchmarkSetup(), name_) {
     }
 
-    Benchmark(const benchmark::BenchmarkSetup &setup_, const char *name_ = "")
+    Benchmark(const BenchmarkSetup &setup_, const char *name_ = "")
             : _name(name_), _setup(setup_), _totalIterations(0) {
         // clock's now() takes longer when called first time
         auto init_timer = benchmark::clock_t::now();
@@ -163,7 +163,7 @@ public:
 
         static bool printedCpuLoad = false;
         if (!printedCpuLoad && _setup.showCpuInfo &&
-            _setup.outputStyle != benchmark::BenchmarkSetup::OutputStyle::Nothing) {
+            _setup.outputStyle != BenchmarkSetup::OutputStyle::Nothing) {
             printedCpuLoad = true;
             printCPULoad();
         }
@@ -171,7 +171,7 @@ public:
 
         findNoopTime();
 
-        if (_setup.outputStyle == benchmark::BenchmarkSetup::OutputStyle::Full)
+        if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full)
             std::cout << "[Benchmark '" << _name << "'] started" << std::endl;
 
         benchmark::detail::BenchmarkState bs;
@@ -207,7 +207,7 @@ public:
                 if (std::chrono::steady_clock::now() - startTime > _setup.timeLimit)
                     break;
 
-                if (_setup.outputStyle == benchmark::BenchmarkSetup::OutputStyle::Full) {
+                if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full) {
                     std::cout << (i % 5 ? "" : ".");
                     std::cout.flush();
                 }
@@ -216,7 +216,7 @@ public:
             if (!_stats.empty()) {
                 calculateTimings();
 
-                if (_setup.outputStyle != benchmark::BenchmarkSetup::OutputStyle::Nothing) {
+                if (_setup.outputStyle != BenchmarkSetup::OutputStyle::Nothing) {
                     std::cout << "\r";
                     std::cout.flush();
                 }
@@ -244,7 +244,7 @@ public:
         auto oldPrecision = std::cout.precision();
         std::cout << std::fixed; // disable scientific notation
 
-        if (_setup.outputStyle == benchmark::BenchmarkSetup::OutputStyle::Full) {
+        if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full) {
             if (!varg1) {
                 std::cout << "[Benchmark '" << _name << "'] done ";
             } else {
@@ -281,7 +281,7 @@ public:
             std::cout << "Min    : " << _stats.minimalTime() << "\n";
             std::cout << "Max    : " << _stats.maximalTime() << std::endl;
 
-        } else if (_setup.outputStyle == benchmark::BenchmarkSetup::OutputStyle::OneLine) {
+        } else if (_setup.outputStyle == BenchmarkSetup::OutputStyle::OneLine) {
             if (!varg1) {
                 std::cout << "[Benchmark '" << _name << "'] ";
             } else {
@@ -326,7 +326,7 @@ public:
         return _totalIterations;
     }
 
-    const benchmark::TimeStatistics & statistics() const {
+    const TimeStatistics & statistics() const {
         return _stats;
     }
 
