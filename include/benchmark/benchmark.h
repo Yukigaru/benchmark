@@ -367,7 +367,7 @@ public:
         void vrun() override { \
             run(&Benchmark##Name::testedFunc); \
         } \
-        static inline BENCHMARK_ALWAYS_INLINE void testedFunc(benchmark::detail::RunState &); \
+        static inline BENCHMARK_ALWAYS_INLINE void testedFunc(::benchmark::detail::RunState &); \
     }; \
     struct RegisterBenchmark##Name { \
         RegisterBenchmark##Name() { \
@@ -376,7 +376,7 @@ public:
         } \
     } __registerBenchmark##Name; \
     \
-    inline void BENCHMARK_ALWAYS_INLINE Benchmark##Name::testedFunc(benchmark::detail::RunState &state)
+    inline void BENCHMARK_ALWAYS_INLINE Benchmark##Name::testedFunc(::benchmark::detail::RunState &state)
 
 #define MEASURE_START state.start();
 #define MEASURE_STOP state.stop();
