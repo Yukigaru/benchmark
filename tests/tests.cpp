@@ -79,7 +79,7 @@ TEST(Main, StdDeviation)
 {
     benchmark::Benchmark b(bs);
     b.run([](benchmark::detail::RunState &) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); });
-    ASSERT_LT(b.statistics().standardDeviation(), std::chrono::microseconds(100));
+    ASSERT_LT(b.statistics().standardDeviation(), std::chrono::milliseconds(10));
 }
 
 TEST(Main, DoNothing)
@@ -102,6 +102,9 @@ int main(int argc, char **argv)
 {
     bs.outputStyle = benchmark::BenchmarkSetup::OutputStyle::Nothing;
     bs.verbose = true;
+    bs.skipWarmup = true;
+    bs.iterations = 20;
+    bs.timeLimit = std::chrono::milliseconds(250);
 
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
