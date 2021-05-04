@@ -13,12 +13,13 @@ Platforms: Linux and macOS. Windows builds without CPU telemetry.
 # Quick start
 
 #### Example
-```
+```cpp
 #include <benchmark/benchmark.h>
+#include <vector>
 
-BENCHMARK("My vector") {
+BENCHMARK(MyVector) {
     std::vector<int> v;
-    v.reserve(N);
+    v.reserve(64);
     
     MEASURE(
         REPEAT(64) { v.push_back(i); }
