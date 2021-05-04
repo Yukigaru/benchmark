@@ -29,6 +29,20 @@ BENCHMARK(MyVector) {
 BENCHMARK_MAIN
 ```
 
+`BENCHMARK_MAIN` accepts these runner options:
+
+- `--output full|oneline|nothing`
+- `--iterations N`
+- `--time-limit-ms N`
+- `--warmup-ms N` or `--skip-warmup`
+- `--high-priority` (opt-in; may require additional permissions)
+- `--no-cpu-info` to skip CPU telemetry collection
+- `--verbose`
+
+The same settings are available through `benchmark::BenchmarkSetup` when using
+`benchmark::BenchmarkSilo::runAll(setup)` directly.
+
+
 # Notes
 #### Things that may interfere with a benchmark
 - Heavy applications such as a browser, IDE, VM. Better to shut those down before running a benchmark.
