@@ -186,6 +186,9 @@ public:
             _stats.clear();
 
             for (unsigned i = 0; i < _setup.iterations;) {
+                // Let other processes run
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
                 benchmark::detail::RunState state(bs, _noopTime);
 
                 state.start();
@@ -200,9 +203,6 @@ public:
                 _totalIterations++;
                 _stats.addSample(sample);
                 i++;
-
-                // give other processes chance to do their job, so that the scheduler is less willing to suspend ours
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
                 if (std::chrono::steady_clock::now() - startTime > _setup.timeLimit)
                     break;
