@@ -241,6 +241,7 @@ public:
     }
 
     void printResults(const int *varg1 = nullptr) {
+        const std::ios::fmtflags oldFlags = std::cout.flags();
         auto oldPrecision = std::cout.precision();
         std::cout << std::fixed; // disable scientific notation
 
@@ -312,6 +313,7 @@ public:
 
             std::cout << ", min: " << _stats.minimalTime() << std::endl;
         }
+        std::cout.flags(oldFlags);
         std::cout << std::setprecision(static_cast<int>(oldPrecision));
     }
 

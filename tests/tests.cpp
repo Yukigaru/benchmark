@@ -98,6 +98,21 @@ TEST(Main, DoNothing)
     ASSERT_GT(b.totalIterations(), 1);
 }
 
+TEST(Benchmark, RestoresOutputFormatting)
+{
+    const std::ios::fmtflags originalFlags = std::cout.flags();
+    std::cout << std::scientific;
+    const std::ios::fmtflags scientificFlags = std::cout.flags();
+
+    benchmark::Benchmark b(bs);
+    b.debugAddSample(std::chrono::nanoseconds(1));
+    ASSERT_TRUE(b.calculateTimings());
+    b.printResults();
+
+    EXPECT_EQ(scientificFlags, std::cout.flags());
+    std::cout.flags(originalFlags);
+}
+
 int main(int argc, char **argv)
 {
     bs.outputStyle = benchmark::BenchmarkSetup::OutputStyle::Nothing;
