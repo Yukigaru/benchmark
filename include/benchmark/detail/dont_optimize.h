@@ -1,6 +1,10 @@
 #pragma once
 #include "config.h"
 
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
+
 namespace benchmark {
 
     void UseCharPointer(char const volatile *);
