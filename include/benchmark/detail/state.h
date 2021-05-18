@@ -157,14 +157,14 @@ namespace benchmark {
             time_point_t _end{duration_t::max()};
             duration_t _duration{0};
 
-            duration_t _noopTime;
+            duration_t _clockReadOverhead;
 
             bool _ended{false};
             BenchmarkState &_bstate;
 
         public:
-            RunState(BenchmarkState &bstate, duration_t noopTime):
-                _noopTime(noopTime),
+            RunState(BenchmarkState &bstate, duration_t clockReadOverhead):
+                _clockReadOverhead(clockReadOverhead),
                 _bstate(bstate)
             {
             }
@@ -190,9 +190,9 @@ namespace benchmark {
 
             duration_t getSample() const {
                 auto sample = _duration;
-                if (_noopTime > std::chrono::nanoseconds(0)) {
-                    if (_noopTime < sample) {
-                        sample -= _noopTime;
+                if (_clockReadOverhead > std::chrono::nanoseconds(0)) {
+                    if (_clockReadOverhead < sample) {
+                        sample -= _clockReadOverhead;
                     } else {
                         sample = std::chrono::nanoseconds(0);
                     }

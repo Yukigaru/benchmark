@@ -96,7 +96,7 @@ class Benchmark {
     TimeStatistics _stats;
     unsigned _totalIterations;
 
-    benchmark::duration_t _noopTime{0};
+    benchmark::duration_t _clockReadOverhead{0};
 
 public:
     Benchmark(const char *name_ = "")
@@ -132,14 +132,14 @@ public:
         }
     }
 
-    void findNoopTime() {
-        _noopTime = benchmark::duration_t::max();
+    void calibrateClockReadOverhead() {
+        _clockReadOverhead = benchmark::duration_t::max();
         for (int i = 0; i < 20; i++) {
             const auto start = benchmark::clock_t::now();
             const auto end = benchmark::clock_t::now();
             const auto d = end - start;
-            if (d < _noopTime) {
-                _noopTime = d;
+            if (d < _clockReadOverhead) {
+                _clockReadOverhead = d;
             }
         }
     }
@@ -169,7 +169,7 @@ public:
         }
         benchmark::detail::ScopedPriority priority(_setup.adjustPriority, _setup.verbose);
 
-        findNoopTime();
+        calibrateClockReadOverhead();
 
         if (_setup.outputStyle == BenchmarkSetup::OutputStyle::Full)
             std::cout << "[Benchmark '" << _name << "'] started" << std::endl;
@@ -189,7 +189,7 @@ public:
                 // Let other processes run
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-                benchmark::detail::RunState state(bs, _noopTime);
+                benchmark::detail::RunState state(bs, _clockReadOverhead);
 
                 state.start();
                 func(state);
