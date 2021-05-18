@@ -40,4 +40,4 @@ BENCHMARK_MAIN
 - `--verbose`
 
 The same settings are available through `benchmark::BenchmarkSetup` when using
-`benchmark::BenchmarkSilo::runAll(setup)` directly.
+`benchmark::BenchmarkRegistry::runAll(setup)` directly.

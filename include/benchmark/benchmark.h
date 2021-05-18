@@ -337,7 +337,7 @@ public:
     }
 };
 
-class BenchmarkSilo {
+class BenchmarkRegistry {
     using BenchmarkCont = std::vector<std::unique_ptr<Benchmark>>;
 
     static BenchmarkCont &benchmarks() {
@@ -374,7 +374,7 @@ public:
     struct RegisterBenchmark##Name { \
         RegisterBenchmark##Name() { \
             ::std::unique_ptr<::benchmark::Benchmark> registeredBenchmark(new Benchmark##Name(#Name)); \
-            ::benchmark::BenchmarkSilo::registerBenchmark(::std::move(registeredBenchmark)); \
+            ::benchmark::BenchmarkRegistry::registerBenchmark(::std::move(registeredBenchmark)); \
         } \
     } __registerBenchmark##Name; \
     \
@@ -390,7 +390,7 @@ public:
 #define ADD_ARG_RANGE(from, to) if (state.addArgument(from, to)) return; MEASURE_START
 #define ARG1 state.arg1()
 
-#define RUN_BENCHMARKS ::benchmark::BenchmarkSilo::runAll();
-#define BENCHMARK_MAIN int main(int argc, char **argv) { return ::benchmark::BenchmarkSilo::runAll(::benchmark::BenchmarkSetup(argc, argv)); }
+#define RUN_BENCHMARKS ::benchmark::BenchmarkRegistry::runAll();
+#define BENCHMARK_MAIN int main(int argc, char **argv) { return ::benchmark::BenchmarkRegistry::runAll(::benchmark::BenchmarkSetup(argc, argv)); }
 
 #define BENCHMARK_STATE benchmark::detail::RunState &state
