@@ -376,7 +376,8 @@ public:
             ::std::unique_ptr<::benchmark::Benchmark> registeredBenchmark(new Benchmark##Name(#Name)); \
             ::benchmark::BenchmarkRegistry::registerBenchmark(::std::move(registeredBenchmark)); \
         } \
-    } __registerBenchmark##Name; \
+    }; \
+    inline RegisterBenchmark##Name __registerBenchmark##Name; \
     \
     inline void BENCHMARK_ALWAYS_INLINE Benchmark##Name::testedFunc(::benchmark::detail::RunState &state)
 
