@@ -5,17 +5,17 @@ namespace benchmark {
         using ColorTag = const char *;
 
 #if !defined(_WIN32)
-        static ColorTag ColorLightGreen = "\x1B[92m";
-        static ColorTag ColorLightYellow = "\x1B[33m";
-        static ColorTag ColorLightRed = "\x1B[91m";
-        static ColorTag ColorRed = "\x1B[31m";
-        static ColorTag ColorReset = "\x1B[0m";
+        inline constexpr ColorTag ColorLightGreen = "\x1B[92m";
+        inline constexpr ColorTag ColorLightYellow = "\x1B[33m";
+        inline constexpr ColorTag ColorLightRed = "\x1B[91m";
+        inline constexpr ColorTag ColorRed = "\x1B[31m";
+        inline constexpr ColorTag ColorReset = "\x1B[0m";
 #else
-        static ColorTag ColorLightGreen = "";
-        static ColorTag ColorLightYellow = "";
-        static ColorTag ColorLightRed = "";
-        static ColorTag ColorRed = "";
-        static ColorTag ColorReset = "";
+        inline constexpr ColorTag ColorLightGreen = "";
+        inline constexpr ColorTag ColorLightYellow = "";
+        inline constexpr ColorTag ColorLightRed = "";
+        inline constexpr ColorTag ColorRed = "";
+        inline constexpr ColorTag ColorReset = "";
 #endif
 
         inline ColorTag selectColorForCPULoad(float relValue) { // [0.0, 1.0]
