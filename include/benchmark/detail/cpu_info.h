@@ -136,7 +136,7 @@ struct CPUStats {
 
 inline std::unique_ptr<CPUStats> readCPUStats()
 {
-    std::unique_ptr<CPUStats> result(new CPUStats{});
+    auto result = std::make_unique<CPUStats>();
 
 #if defined(__linux__)
     std::ifstream stream("/proc/stat");
@@ -201,7 +201,7 @@ inline std::unique_ptr<CPULoadResult> getCPULoad() {
 
     const std::size_t cores = std::min(first->statsByCore.size(), second->statsByCore.size());
     std::vector<CoreFrequency> frequencies = readCPUFreqs();
-    std::unique_ptr<CPULoadResult> result(new CPULoadResult{});
+    auto result = std::make_unique<CPULoadResult>();
     result->numCores = static_cast<int>(cores);
 
     for (std::size_t i = 0; i < cores; ++i) {

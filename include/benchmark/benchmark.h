@@ -373,8 +373,8 @@ public:
     }; \
     struct RegisterBenchmark##Name { \
         RegisterBenchmark##Name() { \
-            ::std::unique_ptr<::benchmark::Benchmark> registeredBenchmark(new Benchmark##Name(#Name)); \
-            ::benchmark::BenchmarkRegistry::registerBenchmark(::std::move(registeredBenchmark)); \
+            ::benchmark::BenchmarkRegistry::registerBenchmark( \
+                ::std::make_unique<Benchmark##Name>(#Name)); \
         } \
     }; \
     inline RegisterBenchmark##Name __registerBenchmark##Name; \
