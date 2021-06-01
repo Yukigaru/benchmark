@@ -33,10 +33,8 @@ private:
             const rep valueTicks = sample.count();
             total += static_cast<long double>(valueTicks);
 
-            if (sample < _minimum)
-                _minimum = sample;
-            if (sample > _maximum)
-                _maximum = sample;
+            _minimum = std::min(_minimum, sample);
+            _maximum = std::max(_maximum, sample);
 
             const long double value = static_cast<long double>(valueTicks);
             const long double delta = value - mean;
@@ -157,7 +155,7 @@ public:
         if (_samples.empty())
             return benchmark::duration_t(0);
 
-        const size_t percentile = static_cast<size_t>(std::max(0, std::min(nth, 100)));
+        const size_t percentile = static_cast<size_t>(std::clamp(nth, 0, 100));
         if (percentile == 0)
             return _samples.front();
 

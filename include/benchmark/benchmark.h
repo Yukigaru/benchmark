@@ -138,9 +138,7 @@ public:
             const auto start = benchmark::clock_t::now();
             const auto end = benchmark::clock_t::now();
             const auto d = end - start;
-            if (d < _clockReadOverhead) {
-                _clockReadOverhead = d;
-            }
+            _clockReadOverhead = std::min(_clockReadOverhead, d);
         }
     }
 
