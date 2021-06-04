@@ -17,6 +17,7 @@ private:
     benchmark::duration_t _minimum;
     benchmark::duration_t _maximum;
     benchmark::duration_t _stdDev;
+    size_t _outlierCount;
 
 private:
     static benchmark::duration_t midpoint(benchmark::duration_t lower,
@@ -79,6 +80,17 @@ private:
             : static_cast<rep>(stdDev + 0.5L);
         _stdDev = benchmark::duration_t(stdDevTicks);
 
+        _outlierCount = 0;
+        if (_samples.size() >= 3 && stdDev > 0.0L) {
+            const long double outlierDistance = stdDev * 2.0L;
+            for (auto sample : _samples) {
+                const long double distanceAboveMean =
+                    static_cast<long double>(sample.count()) - mean;
+                if (distanceAboveMean > outlierDistance)
+                    ++_outlierCount;
+            }
+        }
+
         // median
         std::sort(_samples.begin(), _samples.end());
         if (_samples.size() % 2 == 1) {
@@ -89,25 +101,6 @@ private:
         }
     }
 
-    bool removeOutliers() {
-        if (_samples.size() < 3)
-            return false;
-
-        bool removed = false;
-        auto outlierThreshold = _average + _stdDev * 2.0f;
-        for (size_t i = 0; i < _samples.size();) {
-            auto sample = _samples[i];
-            if (sample > outlierThreshold) {
-                _samples[i] = _samples.back();
-                _samples.pop_back();
-                removed = true;
-            } else {
-                i++;
-            }
-        }
-        return removed;
-    }
-
 public:
     TimeStatistics():
         _totalSum(0)
@@ -115,7 +108,8 @@ public:
         , _median(0)
         , _minimum(0)
         , _maximum(0)
-        , _stdDev(0) {
+        , _stdDev(0)
+        , _outlierCount(0) {
         _samples.reserve(256);
     }
 
@@ -132,9 +126,6 @@ public:
             return false;
 
         calculateStats();
-        if (removeOutliers()) {
-            calculateStats();
-        }
         return true;
     }
     
@@ -181,6 +172,10 @@ public:
 
     benchmark::duration_t standardDeviation() const {
         return _stdDev;
+    }
+
+    size_t outlierCount() const {
+        return _outlierCount;
     }
 
     bool highDeviation() const {

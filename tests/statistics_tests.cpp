@@ -81,6 +81,20 @@ TEST(TimeStatistics, CalculatesMedianWithoutOverflow)
     EXPECT_EQ(duration(std::numeric_limits<rep>::max() - 1), upperRange.medianTime());
 }
 
+TEST(TimeStatistics, RetainsAndClassifiesOutliers)
+{
+    benchmark::TimeStatistics statistics;
+    for (size_t i = 0; i < 9; ++i)
+        statistics.addSample(benchmark::duration_t(1));
+    statistics.addSample(benchmark::duration_t(100));
+
+    ASSERT_TRUE(statistics.calculate());
+    EXPECT_EQ(10u, statistics.size());
+    EXPECT_EQ(1u, statistics.outlierCount());
+    EXPECT_EQ(benchmark::duration_t(109), statistics.totalTimeRun());
+    EXPECT_EQ(benchmark::duration_t(100), statistics.maximalTime());
+}
+
 TEST(TimeStatistics, PercentileHandlesBoundsAndSingleSample)
 {
     benchmark::TimeStatistics empty;
