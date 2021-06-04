@@ -19,6 +19,21 @@ private:
     benchmark::duration_t _stdDev;
 
 private:
+    static benchmark::duration_t midpoint(benchmark::duration_t lower,
+                                          benchmark::duration_t upper) {
+        using rep = benchmark::duration_t::rep;
+
+        const rep lowerTicks = lower.count();
+        const rep upperTicks = upper.count();
+        if ((lowerTicks < 0) == (upperTicks < 0))
+            return benchmark::duration_t(lowerTicks + (upperTicks - lowerTicks) / 2);
+
+        const rep sum = lowerTicks + upperTicks;
+        const rep roundedDown = sum < 0 && sum % 2 != 0 ? sum / 2 - 1 : sum / 2;
+        return benchmark::duration_t(roundedDown);
+    }
+
+private:
     void calculateStats() {
         using rep = benchmark::duration_t::rep;
 
@@ -70,7 +85,7 @@ private:
             _median = _samples[_samples.size() / 2];
         } else {
             auto j = _samples.size() / 2;
-            _median = _samples[j - 1] + (_samples[j] - _samples[j - 1]) / 2;
+            _median = midpoint(_samples[j - 1], _samples[j]);
         }
     }
 

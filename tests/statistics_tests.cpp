@@ -4,6 +4,7 @@
 
 #include <climits>
 #include <cstddef>
+#include <limits>
 #include <vector>
 
 namespace {
@@ -62,7 +63,23 @@ TEST(TimeStatistics, CalculatesMedianWithoutLosingOddTicks)
     EXPECT_EQ(benchmark::duration_t(2), statistics.medianTime());
 }
 
+TEST(TimeStatistics, CalculatesMedianWithoutOverflow)
+{
+    using duration = benchmark::duration_t;
+    using rep = duration::rep;
 
+    benchmark::TimeStatistics fullRange;
+    fullRange.addSample(duration(std::numeric_limits<rep>::min()));
+    fullRange.addSample(duration(std::numeric_limits<rep>::max()));
+    ASSERT_TRUE(fullRange.calculate());
+    EXPECT_EQ(duration(-1), fullRange.medianTime());
+
+    benchmark::TimeStatistics upperRange;
+    upperRange.addSample(duration(std::numeric_limits<rep>::max() - 1));
+    upperRange.addSample(duration(std::numeric_limits<rep>::max()));
+    ASSERT_TRUE(upperRange.calculate());
+    EXPECT_EQ(duration(std::numeric_limits<rep>::max() - 1), upperRange.medianTime());
+}
 
 TEST(TimeStatistics, PercentileHandlesBoundsAndSingleSample)
 {
