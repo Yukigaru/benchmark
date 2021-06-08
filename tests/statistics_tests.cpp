@@ -95,6 +95,26 @@ TEST(TimeStatistics, RetainsAndClassifiesOutliers)
     EXPECT_EQ(benchmark::duration_t(100), statistics.maximalTime());
 }
 
+TEST(TimeStatistics, ClearResetsSamplesAndCachedStatistics)
+{
+    benchmark::TimeStatistics statistics;
+    statistics.addSample(benchmark::duration_t(1));
+    statistics.addSample(benchmark::duration_t(100));
+    ASSERT_TRUE(statistics.calculate());
+
+    statistics.clear();
+
+    EXPECT_TRUE(statistics.empty());
+    EXPECT_EQ(0u, statistics.size());
+    EXPECT_EQ(benchmark::duration_t(0), statistics.totalTimeRun());
+    EXPECT_EQ(benchmark::duration_t(0), statistics.averageTime());
+    EXPECT_EQ(benchmark::duration_t(0), statistics.medianTime());
+    EXPECT_EQ(benchmark::duration_t(0), statistics.minimalTime());
+    EXPECT_EQ(benchmark::duration_t(0), statistics.maximalTime());
+    EXPECT_EQ(benchmark::duration_t(0), statistics.standardDeviation());
+    EXPECT_EQ(0u, statistics.outlierCount());
+}
+
 TEST(TimeStatistics, PercentileHandlesBoundsAndSingleSample)
 {
     benchmark::TimeStatistics empty;

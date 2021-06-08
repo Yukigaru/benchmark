@@ -119,6 +119,13 @@ public:
 
     void clear() {
         _samples.clear();
+        _totalSum = benchmark::duration_t(0);
+        _average = benchmark::duration_t(0);
+        _median = benchmark::duration_t(0);
+        _minimum = benchmark::duration_t(0);
+        _maximum = benchmark::duration_t(0);
+        _stdDev = benchmark::duration_t(0);
+        _outlierCount = 0;
     }
 
     bool calculate() {
