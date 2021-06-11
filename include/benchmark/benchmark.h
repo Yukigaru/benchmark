@@ -11,7 +11,9 @@
 #include <iostream>
 #include <iomanip>
 #include <memory>
+#include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include "detail/config.h"
 #include "detail/dont_optimize.h"
@@ -357,6 +359,30 @@ public:
     }
 };
 
+namespace detail {
+
+template<typename F>
+class CallableBenchmark final : public Benchmark {
+    F _function;
+
+public:
+    template<typename Callable>
+    CallableBenchmark(const char *name, Callable &&function)
+        : Benchmark(name), _function(std::forward<Callable>(function))
+    {
+    }
+
+    void vrun() override {
+        if constexpr (std::is_invocable_v<F &, RunState &>) {
+            run(_function);
+        } else {
+            run([this](RunState &) { _function(); });
+        }
+    }
+};
+
+} // namespace detail
+
 class BenchmarkRegistry {
     using BenchmarkCont = std::vector<std::unique_ptr<Benchmark>>;
 
@@ -366,8 +392,25 @@ class BenchmarkRegistry {
     }
 
 public:
-    static void registerBenchmark(std::unique_ptr<Benchmark> registeredBenchmark) {
+    static Benchmark &registerBenchmark(std::unique_ptr<Benchmark> registeredBenchmark) {
+        if (!registeredBenchmark)
+            throw std::invalid_argument("Cannot register a null benchmark");
+
+        Benchmark &result = *registeredBenchmark;
         benchmarks().push_back(std::move(registeredBenchmark));
+        return result;
+    }
+
+    template<typename F>
+    static Benchmark &registerBenchmark(const std::string &name, F &&function) {
+        using Callable = std::decay_t<F>;
+        static_assert(std::is_invocable_v<Callable &, detail::RunState &> ||
+                      std::is_invocable_v<Callable &>,
+                      "A benchmark callable must accept no arguments or benchmark::detail::RunState&");
+
+        return registerBenchmark(
+            std::make_unique<detail::CallableBenchmark<Callable>>(
+                name.c_str(), std::forward<F>(function)));
     }
 
     static int runAll(const BenchmarkSetup &setup = BenchmarkSetup()) {
@@ -378,6 +421,11 @@ public:
         return 0;
     }
 };
+
+template<typename F>
+Benchmark &registerBenchmark(const std::string &name, F &&function) {
+    return BenchmarkRegistry::registerBenchmark(name, std::forward<F>(function));
+}
 
 } // namespace benchmark
 
