@@ -88,6 +88,13 @@ public:
 
 } // namespace detail
 
+struct BenchmarkResult {
+    std::string name;
+    std::vector<int> arguments;
+    unsigned iterations{0};
+    TimeStatistics statistics;
+};
+
 
 class Benchmark {
     std::string _name;
@@ -95,6 +102,7 @@ class Benchmark {
 
     TimeStatistics _stats;
     unsigned _totalIterations;
+    std::vector<int> _lastArguments;
 
     benchmark::duration_t _clockReadOverhead{0};
 
@@ -147,6 +155,7 @@ public:
 
     template<typename F>
     void run(F &&func) {
+        _lastArguments.clear();
 #ifdef _DEBUG
 #pragma message("Warning: Benchmark library is being compiled in a Debug configuration.")
         static std::once_flag warnDebugMode;
@@ -213,6 +222,11 @@ public:
 
             if (!_stats.empty()) {
                 calculateTimings();
+
+                _lastArguments.clear();
+                if (bs.variableArgsMode()) {
+                    _lastArguments.push_back(bs.getArg());
+                }
 
                 if (_setup.outputStyle != BenchmarkSetup::OutputStyle::Nothing) {
                     std::cout << "\r";
@@ -328,6 +342,14 @@ public:
 
     const TimeStatistics & statistics() const {
         return _stats;
+    }
+
+    BenchmarkResult result() const {
+        return BenchmarkResult{_name, _lastArguments, _totalIterations, _stats};
+    }
+
+    const std::string &name() const {
+        return _name;
     }
 
     void setSetup(const BenchmarkSetup &setup) {
