@@ -288,7 +288,10 @@ public:
             std::cout << "Median : " << _stats.medianTime() << "\n";
             std::cout << "90th   : " << _stats.percentile(90) << "\n";
             std::cout << "Min    : " << _stats.minimalTime() << "\n";
-            std::cout << "Max    : " << _stats.maximalTime() << std::endl;
+            std::cout << "Max    : " << _stats.maximalTime() << "\n";
+            if (_stats.outlierCount() > 0)
+                std::cout << "Outliers: " << _stats.outlierCount() << " of " << _stats.size() << "\n";
+            std::cout.flush();
 
         } else if (_setup.outputStyle == BenchmarkSetup::OutputStyle::OneLine) {
             if (!varg1) {
@@ -319,7 +322,10 @@ public:
                 std::cout << " (" << std::setprecision(1) << (float) (_stats.standardDeviationLevel() * 100.0) << "%)";
             }
 
-            std::cout << ", min: " << _stats.minimalTime() << std::endl;
+            std::cout << ", min: " << _stats.minimalTime();
+            if (_stats.outlierCount() > 0)
+                std::cout << ", outliers: " << _stats.outlierCount() << "/" << _stats.size();
+            std::cout << std::endl;
         }
         std::cout.flags(oldFlags);
         std::cout << std::setprecision(static_cast<int>(oldPrecision));
