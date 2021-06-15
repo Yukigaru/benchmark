@@ -123,23 +123,21 @@ public:
     virtual ~Benchmark() = default;
 
     void warmupCpu() {
-        static bool onlyOnce = false;
-        if (onlyOnce) // not supposed to be thread-safe, that's fine
-            return;
-        onlyOnce = true;
+        static std::once_flag warmupOnce;
+        std::call_once(warmupOnce, [this] {
+            std::cout << benchmark::detail::ColorLightRed
+                      << "Warning: CPU power-safe mode enabled. Will try to warm up before the benchmark."
+                      << benchmark::detail::ColorReset
+                      << std::endl;
 
-        std::cout << benchmark::detail::ColorLightRed
-                  << "Warning: CPU power-safe mode enabled. Will try to warm up before the benchmark."
-                  << benchmark::detail::ColorReset
-                  << std::endl;
-
-        auto start = benchmark::clock_t::now(); // do nothing serious for N seconds cycle
-        while (true) {
-            unsigned p = static_cast<unsigned>(std::rand());
-            benchmark::DoNotOptimize(p);
-            if (benchmark::clock_t::now() - start > _setup.warmupTime)
-                break;
-        }
+            auto start = benchmark::clock_t::now(); // do nothing serious for N seconds cycle
+            while (true) {
+                unsigned p = static_cast<unsigned>(std::rand());
+                benchmark::DoNotOptimize(p);
+                if (benchmark::clock_t::now() - start > _setup.warmupTime)
+                    break;
+            }
+        });
     }
 
     void calibrateClockReadOverhead() {
@@ -170,12 +168,8 @@ public:
         }
 
 
-        static bool printedCpuLoad = false;
-        if (!printedCpuLoad && _setup.showCpuInfo &&
-            _setup.outputStyle != BenchmarkSetup::OutputStyle::Nothing) {
-            printedCpuLoad = true;
-            printCPULoad();
-        }
+        if (_setup.showCpuInfo && _setup.outputStyle != BenchmarkSetup::OutputStyle::Nothing)
+            printCPULoadOnce();
         benchmark::detail::ScopedPriority priority(_setup.adjustPriority, _setup.verbose);
 
         calibrateClockReadOverhead();
@@ -336,6 +330,11 @@ public:
         auto cpuLoad = benchmark::detail::getCPULoad();
         std::cout << cpuLoad;
         std::cout << "\n\n";
+    }
+
+    void printCPULoadOnce() {
+        static std::once_flag cpuInfoOnce;
+        std::call_once(cpuInfoOnce, [this] { printCPULoad(); });
     }
 
     unsigned totalIterations() const {
