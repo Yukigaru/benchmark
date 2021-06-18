@@ -31,6 +31,9 @@ BENCHMARK_MAIN
 
 `BENCHMARK_MAIN` accepts these runner options:
 
+- `--help` or `-h`
+- `--list`
+- `--filter TEXT` to select benchmark names containing `TEXT`
 - `--output full|oneline|nothing`
 - `--iterations N`
 - `--time-limit-ms N`

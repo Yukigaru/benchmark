@@ -396,6 +396,27 @@ class BenchmarkRegistry {
         return result;
     }
 
+    static bool selected(const Benchmark &registeredBenchmark, const BenchmarkSetup &setup) {
+        return setup.benchmarkFilter.empty() ||
+               registeredBenchmark.name().find(setup.benchmarkFilter) != std::string::npos;
+    }
+
+    static void printHelp() {
+        std::cout
+            << "Usage: benchmark [options]\n"
+            << "  --help, -h                 Show this help\n"
+            << "  --list                     List registered benchmarks\n"
+            << "  --filter TEXT              Run or list matching benchmark names\n"
+            << "  --output STYLE             full, oneline, or nothing\n"
+            << "  --iterations N             Maximum samples per benchmark\n"
+            << "  --time-limit-ms N          Maximum wall time per benchmark\n"
+            << "  --warmup-ms N              CPU warmup duration\n"
+            << "  --skip-warmup              Disable CPU warmup\n"
+            << "  --high-priority            Request higher process priority\n"
+            << "  --no-cpu-info              Disable CPU telemetry\n"
+            << "  --verbose                  Enable diagnostics\n";
+    }
+
 public:
     static Benchmark &registerBenchmark(std::unique_ptr<Benchmark> registeredBenchmark) {
         if (!registeredBenchmark)
@@ -419,7 +440,22 @@ public:
     }
 
     static int runAll(const BenchmarkSetup &setup = BenchmarkSetup()) {
+        if (setup.showHelp) {
+            printHelp();
+            return 0;
+        }
+
+        if (setup.listBenchmarks) {
+            for (const auto &registeredBenchmark : benchmarks()) {
+                if (selected(*registeredBenchmark, setup))
+                    std::cout << registeredBenchmark->name() << "\n";
+            }
+            return 0;
+        }
+
         for (auto &registeredBenchmark : benchmarks()) {
+            if (!selected(*registeredBenchmark, setup))
+                continue;
             registeredBenchmark->setSetup(setup);
             registeredBenchmark->vrun();
         }

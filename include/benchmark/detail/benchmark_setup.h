@@ -21,6 +21,8 @@ struct BenchmarkSetup {
         skipWarmup(false),
         adjustPriority(false),
         showCpuInfo(true),
+        showHelp(false),
+        listBenchmarks(false),
         iterations(200),
         timeLimit(std::chrono::seconds(2)),
         warmupTime(std::chrono::seconds(1))
@@ -49,6 +51,11 @@ struct BenchmarkSetup {
         skipWarmup = args.contains("skip-warmup", "skipWarmup");
         adjustPriority = args.contains("high-priority");
         showCpuInfo = !args.contains("no-cpu-info");
+        showHelp = args.contains("help", "h");
+        listBenchmarks = args.contains("list");
+
+        if (args.contains("filter"))
+            benchmarkFilter = args.after("filter");
 
         iterations = readUnsigned(args, "iterations", iterations);
         timeLimit = std::chrono::milliseconds(
@@ -62,6 +69,9 @@ struct BenchmarkSetup {
     bool skipWarmup;
     bool adjustPriority;
     bool showCpuInfo;
+    bool showHelp;
+    bool listBenchmarks;
+    std::string benchmarkFilter;
     unsigned iterations;
     std::chrono::milliseconds timeLimit;
     std::chrono::milliseconds warmupTime;
