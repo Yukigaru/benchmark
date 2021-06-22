@@ -174,6 +174,13 @@ namespace benchmark {
                 return _bstate.addArgument(from, to);
             }
 
+            template<typename F>
+            BENCHMARK_ALWAYS_INLINE void measure(F &&function) {
+                start();
+                std::forward<F>(function)();
+                stop();
+            }
+
             BENCHMARK_ALWAYS_INLINE void start() {
                 _ended = false;
                 _start = clock_t::now();

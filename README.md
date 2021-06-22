@@ -29,6 +29,9 @@ BENCHMARK(MyVector) {
 BENCHMARK_MAIN
 ```
 
+`state.measure([&] { ... });` is available as a callable alternative to the
+`MEASURE` macro.
+
 `BENCHMARK_MAIN` accepts these runner options:
 
 - `--help` or `-h`
