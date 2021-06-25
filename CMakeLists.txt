@@ -8,6 +8,9 @@ endif()
 option(WITH_EXAMPLES "Build examples" ON)
 option(WITH_TESTS "Build tests" ON)
 
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package(Threads REQUIRED)
+
 add_library(benchmark STATIC
     src/benchmark.cpp
     include/benchmark/benchmark.h
@@ -23,6 +26,7 @@ add_library(benchmark STATIC
 target_compile_features(benchmark PUBLIC cxx_std_17)
 set_target_properties(benchmark PROPERTIES CXX_EXTENSIONS OFF)
 target_include_directories(benchmark PUBLIC include/)
+target_link_libraries(benchmark PUBLIC Threads::Threads)
 
 if(WITH_EXAMPLES)
     add_subdirectory(examples)
