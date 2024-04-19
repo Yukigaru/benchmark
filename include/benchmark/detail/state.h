@@ -2,7 +2,6 @@
 #include <chrono>
 #include <vector>
 #include "config.h"
-#include <atomic> // for signal fence
 
 namespace benchmark {
     namespace detail {
@@ -44,7 +43,7 @@ namespace benchmark {
         class BenchmarkState {
             bool _firstTime;
 
-            std::vector<VariableArgument> _variableArguments;
+            std::vector<VariableArgument> _variableArgs;
             int _currentArg1;
             bool _variablesDone;
 
@@ -55,11 +54,15 @@ namespace benchmark {
             }
 
             bool addArgument(int from, int to) {
-                auto i = std::find_if(_variableArguments.begin(), _variableArguments.end(), [=](const VariableArgument& arg){ return arg.range.first == from && arg.range.second == to; });
-                if (i == _variableArguments.end()) {
+                auto i = std::find_if(_variableArgs.begin(), _variableArgs.end(),
+                    [=](const VariableArgument& arg) {
+                        return arg.range.first == from && arg.range.second == to;
+                    });
+
+                if (i == _variableArgs.end()) {
                     GrowthType growthType = findGrowthType(from, to);
                     bool growing = to > from;
-                    _variableArguments.emplace_back(VariableArgument{{from, to}, growthType, growing, from});
+                    _variableArgs.emplace_back(VariableArgument{{from, to}, growthType, growing, from});
                     _variablesDone = false;
                     _needRestart = true;
                     return true;
@@ -69,11 +72,11 @@ namespace benchmark {
             }
 
             void pickNextArgument() {
-                if (_variableArguments.empty()) {
+                if (_variableArgs.empty()) {
                     return;
                 }
 
-                VariableArgument &varg = _variableArguments[0];
+                VariableArgument &varg = _variableArgs[0];
 
                 _currentArg1 = varg.value;
 
@@ -107,7 +110,7 @@ namespace benchmark {
             }
 
             bool running() {
-                if (_variableArguments.empty()) {
+                if (_variableArgs.empty()) {
                     // without variable arguments we just run only once
                     bool result = _firstTime;
                     _firstTime = false;
@@ -118,7 +121,7 @@ namespace benchmark {
             }
 
             bool variableArgsMode() const {
-                return !_variableArguments.empty();
+                return !_variableArgs.empty();
             }
 
             BENCHMARK_ALWAYS_INLINE int getArg() {
@@ -154,9 +157,6 @@ namespace benchmark {
 
             BENCHMARK_ALWAYS_INLINE void start() {
                 _ended = false;
-
-                //std::atomic_signal_fence(std::memory_order_acq_rel);
-                // TODO: insert memory barrier here?
                 _start = clock_t::now();
             }
 
@@ -164,12 +164,7 @@ namespace benchmark {
                 if (!_ended) {
                     _end = clock_t::now();
 
-                    //std::atomic_signal_fence(std::memory_order_acq_rel);
-
-                    // TODO: insert memory barrier here?
-                    auto duration = (_end - _start);
-
-                    _duration += duration;
+                    _duration += (_end - _start);
                     _ended = true;
                 }
             }
